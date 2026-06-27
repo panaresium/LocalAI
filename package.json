@@ -119,7 +119,9 @@
     "test:chat-adaptive-max-turns": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-adaptive-max-turns.ps1",
     "test:post-milestone-ux42": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux42.ps1",
     "test:chat-command-plan-cue": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-command-plan-cue.ps1",
-    "test:post-milestone-ux43": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux43.ps1"
+    "test:post-milestone-ux43": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux43.ps1",
+    "test:chat-plan-confidence-gate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-plan-confidence-gate.ps1",
+    "test:post-milestone-ux44": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux44.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

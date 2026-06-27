@@ -470,6 +470,37 @@ textarea {
   font-size: 12px;
 }
 
+.chat-plan-gate {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.chat-plan-gate div {
+  display: block;
+  border: 1px solid #d8e7f7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 6px 8px;
+}
+
+.chat-plan-gate dt,
+.chat-plan-gate dd {
+  margin: 0;
+}
+
+.chat-plan-gate dt {
+  color: #66707b;
+  font-size: 11px;
+}
+
+.chat-plan-gate dd {
+  color: #223041;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .chat-plan-cue button {
   margin-top: 8px;
   width: 100%;

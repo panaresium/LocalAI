@@ -302,6 +302,10 @@ type ChatCommandPlanCue = {
   readonly intentLabel: string;
   readonly detail: string;
   readonly risk: CommandPlan["risk"];
+  readonly confidencePercent: number;
+  readonly confidenceThresholdPercent: number;
+  readonly referencesRequired: boolean;
+  readonly approvalGate: string;
   readonly blockedTerms: readonly string[];
   readonly canPrepare: boolean;
 };
@@ -806,6 +810,32 @@ function buildCommandComposerRoutePreview(
   };
 }
 
+function chatCommandConfidencePercent(command: string, route: CommandPlanRoute): number {
+  const text = command.toLowerCase();
+  if (route === "computer-control" && /\b(time\s*zone|timezone|date and time|system time|singapore time|singapore standard time)\b/u.test(text)) {
+    return 93;
+  }
+  if (route === "media-generation") {
+    return 93;
+  }
+  if (route === "profile-config") {
+    return 94;
+  }
+  if (route === "automation") {
+    return 92;
+  }
+  if (route === "knowledge" || route === "packaging-hardening") {
+    return 91;
+  }
+  if (route === "app-adapters" || route === "computer-control") {
+    return 90;
+  }
+  if (route === "chat") {
+    return 92;
+  }
+  return 62;
+}
+
 function buildChatCommandPlanCue(
   command: string,
   policy: CommandCenterState["policy"] | null
@@ -822,6 +852,14 @@ function buildChatCommandPlanCue(
   }
 
   const maxChars = policy?.maxCommandChars ?? 600;
+  const confidencePercent = chatCommandConfidencePercent(trimmedCommand, routePreview.route);
+  const confidenceThresholdPercent = 90;
+  const referencesRequired = confidencePercent < confidenceThresholdPercent;
+  const approvalGate = blockedTerms.length > 0
+    ? "Revise blocked terms"
+    : referencesRequired
+      ? "Add references first"
+      : "Draft waits for approval";
   return {
     command: trimmedCommand,
     route: routePreview.route,
@@ -830,8 +868,12 @@ function buildChatCommandPlanCue(
     intentLabel: routePreview.intentLabel,
     detail: routePreview.detail,
     risk: routePreview.risk,
+    confidencePercent,
+    confidenceThresholdPercent,
+    referencesRequired,
+    approvalGate,
     blockedTerms,
-    canPrepare: trimmedCommand.length <= maxChars && blockedTerms.length === 0
+    canPrepare: trimmedCommand.length <= maxChars && blockedTerms.length === 0 && !referencesRequired
   };
 }
 
@@ -6731,6 +6773,16 @@ export function App(): ReactElement {
                 <span>{chatCommandPlanCue.intentLabel}</span>
               </div>
               <p>{chatCommandPlanCue.detail} · Opens {chatCommandPlanCue.workspaceLabel} for approval.</p>
+              <dl className="chat-plan-gate" aria-label="Chat plan confidence and approval gate">
+                <div>
+                  <dt>Confidence</dt>
+                  <dd>{chatCommandPlanCue.confidencePercent}% / {chatCommandPlanCue.confidenceThresholdPercent}%</dd>
+                </div>
+                <div>
+                  <dt>Approval</dt>
+                  <dd>{chatCommandPlanCue.approvalGate}</dd>
+                </div>
+              </dl>
               {chatCommandPlanCue.blockedTerms.length > 0 ? (
                 <small>{pluralize(chatCommandPlanCue.blockedTerms.length, "blocked term", "blocked terms")} must be revised first.</small>
               ) : null}

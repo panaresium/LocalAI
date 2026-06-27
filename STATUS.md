@@ -1,6 +1,58 @@
 # STATUS
 
-Last updated: 2026-06-27 16:25 Asia/Bangkok
+Last updated: 2026-06-27 16:33 Asia/Bangkok
+
+## Post-Milestone UX Pass 44 - Chat Plan Confidence Gate
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 16:33 Asia/Bangkok.
+
+## Chat Plan Confidence Gate Completed
+
+- Added confidence and approval-gate metadata to the Chat command-plan cue.
+- Added route confidence percentages that mirror the Command Center confidence floors for matched local routes.
+- Added a 90% confidence threshold display before plan preparation.
+- Added a compact confidence/approval gate row in the Chat side panel.
+- Plan preparation is disabled when references would be required or blocked terms are present.
+- Kept the Chat composer simple with no extra configuration controls.
+- Kept Command Center as the authoritative planner when a draft is created.
+- Added `scripts\test-chat-plan-confidence-gate.ps1`.
+- Added `scripts\run-post-milestone-ux44.ps1`.
+- Added post-milestone UX chat plan confidence gate tests.
+
+## Chat Plan Confidence Gate Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat plan confidence gate validation passes.
+- Full post-milestone UX node regression passes with 186 tests.
+- The Chat cue shows confidence against the 90% threshold before preparing a plan.
+- The Chat cue still creates only a draft plan for later approval.
+- No silent execution, approval bypass, shell access, or new OS privilege path was added.
+
+## Chat Plan Confidence Gate Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux44.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat plan confidence gate validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux44/run-summary.json`
+- `artifacts/post-milestone-ux44/chat-plan-confidence-gate.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-plan-confidence-gate.test.mjs`
+- `scripts/test-chat-plan-confidence-gate.ps1`
+- `scripts/run-post-milestone-ux44.ps1`
 
 ## Post-Milestone UX Pass 43 - Chat Command Plan Cue
 
