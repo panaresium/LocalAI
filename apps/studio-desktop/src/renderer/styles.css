@@ -501,6 +501,42 @@ textarea {
   font-weight: 650;
 }
 
+.chat-plan-next-steps {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-plan-next-steps li {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border-left: 3px solid #8cb6df;
+  background: #ffffff;
+  padding: 6px 8px;
+}
+
+.chat-plan-next-steps li.blocked {
+  border-left-color: #d92d20;
+}
+
+.chat-plan-next-steps strong,
+.chat-plan-next-steps span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.chat-plan-next-steps strong {
+  color: #223041;
+}
+
+.chat-plan-next-steps span {
+  color: #4b5563;
+}
+
 .chat-plan-cue button {
   margin-top: 8px;
   width: 100%;

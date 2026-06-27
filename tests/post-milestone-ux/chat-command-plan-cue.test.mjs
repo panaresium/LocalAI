@@ -19,7 +19,8 @@ test("Chat defines a local command-plan cue from the current draft", () => {
   assert.match(rendererSource, /function buildChatCommandPlanCue\(\s*command: string,\s*policy: CommandCenterState\["policy"\] \| null\s*\): ChatCommandPlanCue \| null/);
   assert.match(rendererSource, /buildCommandComposerRoutePreview\(trimmedCommand, blockedTerms\)/);
   assert.match(rendererSource, /routePreview\.confidence !== "matched" \|\| routePreview\.route === "chat"/);
-  assert.match(rendererSource, /canPrepare: trimmedCommand\.length <= maxChars && blockedTerms\.length === 0/);
+  assert.match(rendererSource, /const canPrepare = trimmedCommand\.length <= maxChars && blockedTerms\.length === 0/);
+  assert.match(rendererSource, /canPrepare\s*\n\s*\};/);
 });
 
 test("Chat prepares draft command plans without approval or execution", () => {

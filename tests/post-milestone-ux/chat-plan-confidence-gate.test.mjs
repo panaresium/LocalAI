@@ -49,7 +49,8 @@ test("Chat cue blocks preparation when confidence requires references", () => {
   assert.match(cueFunction, /const confidenceThresholdPercent = 90/);
   assert.match(cueFunction, /const referencesRequired = confidencePercent < confidenceThresholdPercent/);
   assert.match(cueFunction, /referencesRequired\s*\?\s*"Add references first"/);
-  assert.match(cueFunction, /canPrepare: trimmedCommand\.length <= maxChars && blockedTerms\.length === 0 && !referencesRequired/);
+  assert.match(cueFunction, /const canPrepare = trimmedCommand\.length <= maxChars && blockedTerms\.length === 0 && !referencesRequired/);
+  assert.match(cueFunction, /canPrepare\s*\n\s*\};/);
 });
 
 test("Chat sidebar renders compact confidence and approval gate details", () => {

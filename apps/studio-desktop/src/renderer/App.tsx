@@ -306,6 +306,7 @@ type ChatCommandPlanCue = {
   readonly confidenceThresholdPercent: number;
   readonly referencesRequired: boolean;
   readonly approvalGate: string;
+  readonly nextSteps: readonly CommandPlanPreviewStep[];
   readonly blockedTerms: readonly string[];
   readonly canPrepare: boolean;
 };
@@ -860,6 +861,27 @@ function buildChatCommandPlanCue(
     : referencesRequired
       ? "Add references first"
       : "Draft waits for approval";
+  const canPrepare = trimmedCommand.length <= maxChars && blockedTerms.length === 0 && !referencesRequired;
+  const nextSteps: readonly CommandPlanPreviewStep[] = [
+    {
+      id: "confirm",
+      label: "Draft",
+      detail: canPrepare ? `${routePreview.intentLabel} plan in Command Center` : "Revise draft before plan creation",
+      state: canPrepare ? "ready" : "blocked"
+    },
+    {
+      id: "approval",
+      label: "Approve",
+      detail: canPrepare ? "User reviews and approves the draft plan" : approvalGate,
+      state: canPrepare ? "pending" : "blocked"
+    },
+    {
+      id: "handoff",
+      label: "Handoff",
+      detail: canPrepare ? `Open ${workspaceLabel(routePreview.workspace)} after approval` : "No handoff until ready",
+      state: canPrepare ? "pending" : "blocked"
+    }
+  ];
   return {
     command: trimmedCommand,
     route: routePreview.route,
@@ -872,8 +894,9 @@ function buildChatCommandPlanCue(
     confidenceThresholdPercent,
     referencesRequired,
     approvalGate,
+    nextSteps,
     blockedTerms,
-    canPrepare: trimmedCommand.length <= maxChars && blockedTerms.length === 0 && !referencesRequired
+    canPrepare
   };
 }
 
@@ -6786,6 +6809,14 @@ export function App(): ReactElement {
               {chatCommandPlanCue.blockedTerms.length > 0 ? (
                 <small>{pluralize(chatCommandPlanCue.blockedTerms.length, "blocked term", "blocked terms")} must be revised first.</small>
               ) : null}
+              <ol className="chat-plan-next-steps" aria-label="Chat plan next steps">
+                {chatCommandPlanCue.nextSteps.map((step) => (
+                  <li className={step.state} key={step.id}>
+                    <strong>{step.label}</strong>
+                    <span>{step.detail}</span>
+                  </li>
+                ))}
+              </ol>
               <button
                 type="button"
                 disabled={!chatCommandPlanCue.canPrepare || isChatRunning}
