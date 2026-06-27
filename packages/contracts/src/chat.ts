@@ -1,3 +1,6 @@
+import type { ModelRoleAlias } from "./model-roles.js";
+import type { ModelLifecycleClass, ModelPrivacyPreset, ModelTaskProfileId } from "./model-fabric.js";
+
 export type ChatRole = "user" | "assistant" | "system";
 export type ChatRunStatus = "idle" | "running" | "completed" | "cancelled" | "failed";
 export type ChatAttachmentKind = "image" | "document" | "audio" | "video" | "other";
@@ -36,6 +39,32 @@ export interface ChatRunMetrics {
   readonly maxTurns: number;
 }
 
+export interface ChatModelAssignment {
+  readonly role: ModelRoleAlias;
+  readonly modelId: string | null;
+  readonly model: string | null;
+  readonly label: string | null;
+  readonly providerId: string | null;
+  readonly providerLabel: string | null;
+  readonly lifecycle: ModelLifecycleClass | null;
+  readonly installed: boolean;
+  readonly loaded: boolean;
+  readonly reason: string;
+}
+
+export interface ChatModelTeam {
+  readonly taskProfileId: ModelTaskProfileId;
+  readonly taskProfileLabel: string;
+  readonly privacyPreset: ModelPrivacyPreset;
+  readonly orchestratorRole: ModelRoleAlias;
+  readonly specialistRoles: readonly ModelRoleAlias[];
+  readonly assignments: readonly ChatModelAssignment[];
+  readonly loadPlan: string;
+  readonly unloadPlan: string;
+  readonly memoryPlan: string;
+  readonly confidenceFloor: number;
+}
+
 export interface ChatThinkingStep {
   readonly id: string;
   readonly label: string;
@@ -65,6 +94,7 @@ export interface ChatThinkingTrace {
   readonly steps: readonly ChatThinkingStep[];
   readonly diagram: ChatThinkingDiagram;
   readonly metrics: ChatRunMetrics;
+  readonly modelTeam: ChatModelTeam | null;
 }
 
 export interface ChatGeneratedImage {
@@ -117,6 +147,7 @@ export interface ChatState {
   readonly timeline: readonly ChatTimelineEntry[];
   readonly activeRunId: string | null;
   readonly activeMaxTurns: number | null;
+  readonly activeModelTeam: ChatModelTeam | null;
   readonly activeSessionId: string | null;
   readonly runStatus: ChatRunStatus;
 }
@@ -127,6 +158,7 @@ export interface SendChatMessageRequest {
   readonly sessionId: string | null;
   readonly attachmentIds: readonly string[];
   readonly maxTurns?: number;
+  readonly modelTeam?: ChatModelTeam;
 }
 
 export interface ChatRunStartedEvent {

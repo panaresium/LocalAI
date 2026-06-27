@@ -1,6 +1,78 @@
 # STATUS
 
-Last updated: 2026-06-27 17:07 Asia/Bangkok
+Last updated: 2026-06-27 17:34 Asia/Bangkok
+
+## Post-Milestone UX Pass 49 - Chat Model Team and Learn Command
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 17:34 Asia/Bangkok.
+
+## Chat Model Team and Learn Command Completed
+
+- Added Chat model-team contracts for task profile, privacy preset, orchestrator role, specialist roles, assignments, lifecycle state, load policy, unload policy, memory policy, and confidence floor.
+- Chat now builds a role-specific model team for each prompt:
+  - conversation
+  - computer control
+  - knowledge research
+  - code change
+  - creative media
+- Chat sends the selected model team to the main process with the message request.
+- The main process validates Chat model-team IPC payloads with strict role, lifecycle, assignment, and bounded string checks.
+- Chat Manager now carries the active model team in `ChatState`.
+- Chat Manager includes the completed model team in the user-visible thinking trace.
+- Chat Manager injects model-team routing context into the Hermes prompt so the orchestrator has explicit specialist-role guidance.
+- Chat Manager uses Model Fabric lifecycle support to warm selected local Ollama specialist models when they are installed and routed.
+- Chat Manager releases on-demand or exclusive specialist models after completion, cancellation, or failure.
+- The Chat AI Process sidebar now shows the selected model team, orchestrator, specialists, assignment status, lifecycle class, and loaded/planned state.
+- Added `#learn` handling in Chat:
+  - `#learn` creates a bounded Learning memory candidate from recent chat context and optional feedback text.
+  - The candidate uses `sourceKind: "chat"`.
+  - Memory persistence remains approval-gated in the existing Knowledge and Learning queue.
+  - No automatic memory approval or silent learning write was added.
+- Kept the Chat composer simple with no profile/session/model selectors.
+- Added `scripts\test-chat-model-team-learn.ps1`.
+- Added `scripts\run-post-milestone-ux49.ps1`.
+- Added post-milestone UX chat model-team and learn-command tests.
+
+## Chat Model Team and Learn Command Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat model-team and `#learn` validation passes.
+- Full post-milestone UX node regression passes with 206 tests.
+- Chat model-team routing is visible in the AI Process sidebar.
+- Chat model-team requests are validated before crossing into main-process execution.
+- `#learn` proposes a pending Learning memory candidate and does not approve or persist it automatically.
+- No external AI call, silent execution, approval bypass, shell access, credential entry, or new OS privilege path was added.
+
+## Chat Model Team and Learn Command Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux49.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat model-team and learn-command validation.
+- Passed: post-milestone UX node regression with 206 tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux49/run-summary.json`
+- `artifacts/post-milestone-ux49/chat-model-team-learn.json`
+- `packages/contracts/src/chat.ts`
+- `apps/studio-desktop/src/main/chat-manager.ts`
+- `apps/studio-desktop/src/main/main.ts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-model-team-learn.test.mjs`
+- `tests/post-milestone-ux/simple-chat-workspace.test.mjs`
+- `scripts/test-chat-model-team-learn.ps1`
+- `scripts/run-post-milestone-ux49.ps1`
+- `package.json`
 
 ## Post-Milestone UX Pass 48 - Chat Prepared Plan Guide
 

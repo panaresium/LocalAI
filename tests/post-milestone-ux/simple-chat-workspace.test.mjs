@@ -45,7 +45,7 @@ test("Chat workspace is a simple input-only surface", () => {
   assert.match(chatBlock, /placeholder="Type what you want\.\.\."/);
   assert.match(chatBlock, /onClick=\{\(\) => void sendMessage\(\)\}/);
   assert.match(chatBlock, /Send\s*<\/button>/);
-  assert.doesNotMatch(chatBlock, /chat-toolbar|<select|selectChatAttachments|Attach|Tool Timeline|timeline-panel|Profile|Session/);
+  assert.doesNotMatch(chatBlock, /chat-toolbar|<select|selectChatAttachments|Attach|Tool Timeline|timeline-panel/);
 });
 
 test("CSS isolates Chat from Admin and other workspaces", () => {

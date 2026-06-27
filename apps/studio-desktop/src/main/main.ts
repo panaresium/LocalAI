@@ -8,6 +8,8 @@ import type {
   AutomationScheduleRepeat,
   AutomationTriggerKind,
   BrowserEngine,
+  ChatModelAssignment,
+  ChatModelTeam,
   ComputerBounds,
   ComputerActiveTarget,
   ComputerActionRisk,
@@ -101,9 +103,9 @@ const supervisor = new StudioServiceSupervisor(createStudioServiceDefinitions(ap
   logFilePath: join(appRoot, "artifacts", "milestone1", "studio-supervisor.log")
 });
 const commandCenterManager = new CommandCenterManager();
-const chatManager = new HermesChatManager(appRoot);
 const profileConfigManager = new ProfileConfigManager(appRoot);
 const modelFabricManager = new ModelFabricManager();
+const chatManager = new HermesChatManager(appRoot, { modelLifecycle: modelFabricManager });
 const knowledgeRagManager = new KnowledgeRagManager(appRoot);
 const learningManager = new LearningManager(appRoot);
 const computerObserveManager = new ComputerObserveManager(appRoot);
@@ -568,6 +570,7 @@ function parseSendChatMessageRequest(value: unknown): SendChatMessageRequest {
   const sessionId = value.sessionId;
   const attachmentIds = value.attachmentIds;
   const maxTurns = value.maxTurns;
+  const modelTeam = value.modelTeam;
   if (typeof prompt !== "string" || typeof profileId !== "string") {
     throw new Error("Invalid chat request.");
   }
@@ -580,6 +583,9 @@ function parseSendChatMessageRequest(value: unknown): SendChatMessageRequest {
   if (maxTurns !== undefined && (typeof maxTurns !== "number" || !Number.isInteger(maxTurns) || maxTurns < 1 || maxTurns > 20)) {
     throw new Error("Invalid chat max turns.");
   }
+  if (modelTeam !== undefined && !isChatModelTeamInput(modelTeam)) {
+    throw new Error("Invalid chat model team.");
+  }
 
   const request: SendChatMessageRequest = {
     prompt,
@@ -587,11 +593,78 @@ function parseSendChatMessageRequest(value: unknown): SendChatMessageRequest {
     sessionId,
     attachmentIds
   };
-  return maxTurns === undefined ? request : { ...request, maxTurns };
+  return {
+    ...request,
+    ...(maxTurns === undefined ? {} : { maxTurns }),
+    ...(modelTeam === undefined ? {} : { modelTeam })
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isChatModelTeamInput(value: unknown): value is ChatModelTeam {
+  if (!isRecord(value) ||
+    !isModelTaskProfileId(value.taskProfileId) ||
+    typeof value.taskProfileLabel !== "string" ||
+    !isPrivacyPreset(value.privacyPreset) ||
+    !isModelRoleAlias(value.orchestratorRole) ||
+    !Array.isArray(value.specialistRoles) ||
+    !value.specialistRoles.every(isModelRoleAlias) ||
+    !Array.isArray(value.assignments) ||
+    !value.assignments.every(isChatModelAssignmentInput) ||
+    typeof value.loadPlan !== "string" ||
+    typeof value.unloadPlan !== "string" ||
+    typeof value.memoryPlan !== "string" ||
+    typeof value.confidenceFloor !== "number") {
+    return false;
+  }
+
+  return value.taskProfileLabel.length <= 80 &&
+    value.specialistRoles.length <= 8 &&
+    value.assignments.length <= 12 &&
+    value.loadPlan.length <= 1000 &&
+    value.unloadPlan.length <= 1000 &&
+    value.memoryPlan.length <= 1000 &&
+    value.confidenceFloor >= 0 &&
+    value.confidenceFloor <= 1;
+}
+
+function isChatModelAssignmentInput(value: unknown): value is ChatModelAssignment {
+  return isRecord(value) &&
+    isModelRoleAlias(value.role) &&
+    (value.modelId === null || typeof value.modelId === "string") &&
+    (value.model === null || typeof value.model === "string") &&
+    (value.label === null || typeof value.label === "string") &&
+    (value.providerId === null || typeof value.providerId === "string") &&
+    (value.providerLabel === null || typeof value.providerLabel === "string") &&
+    (value.lifecycle === null || isModelLifecycleClass(value.lifecycle)) &&
+    typeof value.installed === "boolean" &&
+    typeof value.loaded === "boolean" &&
+    typeof value.reason === "string" &&
+    (value.modelId === null || value.modelId.length <= 160) &&
+    (value.model === null || value.model.length <= 120) &&
+    (value.label === null || value.label.length <= 120) &&
+    (value.providerId === null || value.providerId.length <= 80) &&
+    (value.providerLabel === null || value.providerLabel.length <= 120) &&
+    value.reason.length <= 1000;
+}
+
+function isModelTaskProfileId(value: unknown): value is ChatModelTeam["taskProfileId"] {
+  return value === "computer-control" ||
+    value === "knowledge-research" ||
+    value === "code-change" ||
+    value === "creative-media" ||
+    value === "conversation";
+}
+
+function isModelLifecycleClass(value: unknown): value is NonNullable<ChatModelAssignment["lifecycle"]> {
+  return value === "pinned" ||
+    value === "warm" ||
+    value === "on-demand" ||
+    value === "batch" ||
+    value === "exclusive";
 }
 
 function parseCreateCommandPlanRequest(value: unknown): CreateCommandPlanRequest {

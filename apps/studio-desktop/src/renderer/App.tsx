@@ -12,6 +12,8 @@ import type {
   BrowserVisionState,
   ChatEvent,
   ChatMessage,
+  ChatModelAssignment,
+  ChatModelTeam,
   ChatState,
   ChatThinkingStep,
   ChatThinkingTrace,
@@ -39,6 +41,7 @@ import type {
   PackagingHardeningState,
   ModelPrivacyPreset,
   ModelRoleAlias,
+  ModelTaskProfileId,
   ProfileConfigState,
   ProfileFileName,
   ServiceLogEntry,
@@ -949,6 +952,81 @@ function buildChatPreparedPlanGuide(plan: CommandPlan): ChatPreparedPlanGuide {
     detail: "Draft plan is waiting for user approval.",
     action: "Review and approve in Command Center."
   };
+}
+
+function buildChatModelTeamForPrompt(
+  prompt: string,
+  fabricState: ModelFabricState | null,
+  privacyPreset: ModelPrivacyPreset
+): ChatModelTeam | null {
+  if (!fabricState) {
+    return null;
+  }
+
+  const taskProfileId = selectChatTaskProfileIdForPrompt(prompt);
+  const profile = fabricState.taskProfiles.find((item) => item.id === taskProfileId)
+    ?? fabricState.taskProfiles.find((item) => item.id === "conversation")
+    ?? null;
+  if (!profile) {
+    return null;
+  }
+
+  const roles = uniqueModelRoles([profile.orchestratorRole, ...profile.specialistRoles]);
+  return {
+    taskProfileId: profile.id,
+    taskProfileLabel: profile.label,
+    privacyPreset,
+    orchestratorRole: profile.orchestratorRole,
+    specialistRoles: profile.specialistRoles,
+    assignments: roles.map((role) => buildChatModelAssignment(role, fabricState)),
+    loadPlan: profile.loadPolicy,
+    unloadPlan: profile.unloadPolicy,
+    memoryPlan: fabricState.memoryRecommendation.recommendation,
+    confidenceFloor: profile.confidenceFloor
+  };
+}
+
+function selectChatTaskProfileIdForPrompt(prompt: string): ModelTaskProfileId {
+  const text = prompt.trim().toLowerCase();
+  if (/\b(image|illustration|picture|artwork|logo|icon|mockup|diagram|flow|workflow|bcp|video)\b/u.test(text)) {
+    return "creative-media";
+  }
+  if (/\b(code|script|typescript|javascript|python|debug|bug|fix|implement|refactor|test|build)\b/u.test(text)) {
+    return "code-change";
+  }
+  if (/\b(computer|desktop|screen|window|click|keyboard|mouse|date and time|time\s*zone|timezone|singapore time)\b/u.test(text)) {
+    return "computer-control";
+  }
+  if (/\b(research|knowledge|rag|document|pdf|report|summari[sz]e|citation|source|reference|internet|browse|web)\b/u.test(text)) {
+    return "knowledge-research";
+  }
+  return "conversation";
+}
+
+function buildChatModelAssignment(role: ModelRoleAlias, fabricState: ModelFabricState): ChatModelAssignment {
+  const route = fabricState.routes.find((item) => item.role === role) ?? null;
+  const model = route?.selectedModelId
+    ? fabricState.models.find((item) => item.id === route.selectedModelId) ?? null
+    : null;
+  const providerId = route?.providerId ?? model?.providerId ?? null;
+  const provider = providerId ? fabricState.providers.find((item) => item.id === providerId) ?? null : null;
+
+  return {
+    role,
+    modelId: route?.selectedModelId ?? null,
+    model: model?.model ?? null,
+    label: model?.label ?? null,
+    providerId,
+    providerLabel: provider?.label ?? null,
+    lifecycle: model?.lifecycle ?? null,
+    installed: model?.installed ?? false,
+    loaded: model?.loaded ?? false,
+    reason: route?.reason ?? "No Model Fabric route is available for this role."
+  };
+}
+
+function uniqueModelRoles(roles: readonly ModelRoleAlias[]): readonly ModelRoleAlias[] {
+  return [...new Set(roles)];
 }
 
 function buildCommandIntentChecklist(
@@ -2076,6 +2154,37 @@ function workspaceLabel(workspaceId: WorkspaceId): string {
   return WORKSPACES.find((workspace) => workspace.id === workspaceId)?.label ?? "Command";
 }
 
+function isChatLearnCommand(prompt: string): boolean {
+  return /^#learn(?:\s+|$)/iu.test(prompt.trim());
+}
+
+function buildChatLearningCandidateContent(prompt: string, messages: readonly ChatMessage[]): string {
+  const feedback = prompt.trim().replace(/^#learn\s*/iu, "").trim();
+  const transcript = messages.slice(-8).map((message) => {
+    const content = message.content.replace(/\s+/gu, " ").trim().slice(0, 500);
+    return `${message.role}: ${content}`;
+  }).filter((line) => !line.endsWith(":")).join("\n");
+
+  return [
+    "Chat feedback captured with #learn.",
+    feedback ? `User feedback: ${feedback}` : "User feedback: learn from the recent chat context.",
+    transcript ? `Recent chat context:\n${transcript}` : "Recent chat context: no prior chat messages were available.",
+    "Use this only after user approval in the Learning queue."
+  ].join("\n\n").slice(0, 3800);
+}
+
+function createLocalChatMessage(role: ChatMessage["role"], content: string): ChatMessage {
+  return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+    createdAt: new Date().toISOString(),
+    attachments: [],
+    thinkingTrace: null,
+    generatedImages: []
+  };
+}
+
 function buildWorkspaceHeaderSummary(
   workspaceId: WorkspaceId,
   badges: Record<WorkspaceId, number>
@@ -2524,11 +2633,37 @@ export function App(): ReactElement {
       return;
     }
 
+    if (isChatLearnCommand(prompt)) {
+      const candidate = await window.hermesStudio.proposeMemoryCandidate({
+        scope: "session",
+        content: buildChatLearningCandidateContent(prompt, messages),
+        confidence: 0.84,
+        provenance: {
+          sourceKind: "chat",
+          sourceId: selectedSessionId ?? chatState?.activeSessionId ?? null,
+          profileId: activeProfileId,
+          projectId: null,
+          note: "Captured from #learn in Chat; pending Learning approval before memory persistence."
+        }
+      });
+      setMessages((existing) => [
+        ...existing,
+        createLocalChatMessage("user", prompt),
+        createLocalChatMessage("assistant", `Learning candidate ${candidate.id} is waiting for approval in Knowledge and Learning.`)
+      ]);
+      setLearningMessage(`Proposed chat learning candidate ${candidate.id}`);
+      setLearningState(await window.hermesStudio.getLearningState());
+      setDraft("");
+      return;
+    }
+
+    const modelTeam = buildChatModelTeamForPrompt(prompt, modelFabricState, selectedPrivacyPreset);
     const nextState = await window.hermesStudio.sendChatMessage({
       prompt,
       profileId: activeProfileId,
       sessionId: selectedSessionId,
-      attachmentIds: []
+      attachmentIds: [],
+      ...(modelTeam ? { modelTeam } : {})
     });
     setChatState(nextState);
     setDraft("");
@@ -3888,6 +4023,9 @@ export function App(): ReactElement {
   const visibleChatMaxTurns = isChatRunning
     ? activeChatMaxTurns
     : latestThinkingTrace?.metrics.maxTurns ?? null;
+  const visibleChatModelTeam = isChatRunning
+    ? chatState?.activeModelTeam ?? buildChatModelTeamForPrompt(draft, modelFabricState, selectedPrivacyPreset)
+    : latestThinkingTrace?.modelTeam ?? buildChatModelTeamForPrompt(draft, modelFabricState, selectedPrivacyPreset);
   const thinkingSidebarSteps = latestThinkingTrace?.steps
     ?? (isChatRunning ? buildLiveThinkingSteps(liveChatOutputTokens > 0, activeChatMaxTurns) : buildIdleThinkingSteps());
   const thinkingSidebarSummary = isChatRunning
@@ -6851,6 +6989,24 @@ export function App(): ReactElement {
             <span>{visibleChatMaxTurns === null ? "auto turns" : `${visibleChatMaxTurns} max turns`}</span>
             <span>{formatElapsedMs(liveChatElapsedMs)}</span>
           </div>
+          {visibleChatModelTeam ? (
+            <section className="chat-model-team" aria-label="Chat model team">
+              <div>
+                <strong>{visibleChatModelTeam.taskProfileLabel}</strong>
+                <span>{visibleChatModelTeam.privacyPreset}</span>
+              </div>
+              <p>{visibleChatModelTeam.orchestratorRole} orchestrates {visibleChatModelTeam.specialistRoles.join(", ") || "no specialist"}.</p>
+              <ol>
+                {visibleChatModelTeam.assignments.map((assignment) => (
+                  <li className={assignment.loaded ? "loaded" : "planned"} key={assignment.role}>
+                    <strong>{assignment.role}</strong>
+                    <span>{assignment.label ?? "No eligible model"}</span>
+                    <small>{assignment.lifecycle ?? "unassigned"} · {assignment.loaded ? "loaded" : "planned"}</small>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
           {chatCommandPlanCue ? (
             <section className={`chat-plan-cue risk-${chatCommandPlanCue.risk}`} aria-label="Chat command plan cue">
               <div>
