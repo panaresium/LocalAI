@@ -127,7 +127,9 @@
     "test:chat-prepared-plan-status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-prepared-plan-status.ps1",
     "test:post-milestone-ux46": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux46.ps1",
     "test:chat-plan-duplicate-guard": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-plan-duplicate-guard.ps1",
-    "test:post-milestone-ux47": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux47.ps1"
+    "test:post-milestone-ux47": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux47.ps1",
+    "test:chat-prepared-plan-guide": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-prepared-plan-guide.ps1",
+    "test:post-milestone-ux48": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux48.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

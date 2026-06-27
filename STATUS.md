@@ -1,6 +1,61 @@
 # STATUS
 
-Last updated: 2026-06-27 17:00 Asia/Bangkok
+Last updated: 2026-06-27 17:07 Asia/Bangkok
+
+## Post-Milestone UX Pass 48 - Chat Prepared Plan Guide
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 17:07 Asia/Bangkok.
+
+## Chat Prepared Plan Guide Completed
+
+- Added a display-only prepared-plan next-action guide inside the Chat command-plan cue.
+- The guide explains the next safe action for draft, approved, rejected, and blocked prepared plans.
+- Approved plans now show that handoff is ready through Command Center.
+- Draft plans show that user review and approval are still required.
+- Rejected plans point users back to review notes before drafting again.
+- Blocked plans explain that blockers must be resolved before approval.
+- Kept `Review Plan` as the only prepared-plan action from Chat.
+- Preserved the existing approval and execution gates; no approval, execution, shell access, or OS handoff occurs from the guide.
+- Added compact prepared-plan guide styling.
+- Added `scripts\test-chat-prepared-plan-guide.ps1`.
+- Added `scripts\run-post-milestone-ux48.ps1`.
+- Added post-milestone UX chat prepared-plan guide tests.
+
+## Chat Prepared Plan Guide Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat prepared-plan guide validation passes.
+- Full post-milestone UX node regression passes with 200 tests.
+- The guide is derived from the existing `CommandPlan` status and blockers.
+- The guide is display-only and does not create, approve, reject, or execute command plans.
+- No silent execution, approval bypass, shell access, or new OS privilege path was added.
+
+## Chat Prepared Plan Guide Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux48.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat prepared-plan guide validation.
+- Passed: post-milestone UX node regression with 200 tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux48/run-summary.json`
+- `artifacts/post-milestone-ux48/chat-prepared-plan-guide.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-prepared-plan-guide.test.mjs`
+- `scripts/test-chat-prepared-plan-guide.ps1`
+- `scripts/run-post-milestone-ux48.ps1`
+- `package.json`
 
 ## Post-Milestone UX Pass 47 - Chat Duplicate Plan Guard
 

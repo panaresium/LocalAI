@@ -310,6 +310,13 @@ type ChatCommandPlanCue = {
   readonly blockedTerms: readonly string[];
   readonly canPrepare: boolean;
 };
+type ChatPreparedPlanGuideTone = "ready" | "blocked" | "approved" | "rejected";
+type ChatPreparedPlanGuide = {
+  readonly tone: ChatPreparedPlanGuideTone;
+  readonly label: string;
+  readonly detail: string;
+  readonly action: string;
+};
 type CommandIntentCheckState = "pass" | "hint" | "blocked";
 type CommandIntentCheck = {
   readonly id: "intent" | "target" | "approval" | "safety";
@@ -906,6 +913,42 @@ function findPreparedChatPlan(command: string, plans: readonly CommandPlan[]): C
     return null;
   }
   return plans.find((plan) => plan.command === trimmedCommand) ?? null;
+}
+
+function buildChatPreparedPlanGuide(plan: CommandPlan): ChatPreparedPlanGuide {
+  if (plan.status === "approved") {
+    return {
+      tone: "approved",
+      label: "Approved",
+      detail: `Ready for approved handoff to ${workspaceLabel(workspaceForCommandRoute(plan.route))}.`,
+      action: "Review approved handoff in Command Center."
+    };
+  }
+
+  if (plan.status === "rejected") {
+    return {
+      tone: "rejected",
+      label: "Rejected",
+      detail: "Use the existing review note to prepare a safer revision.",
+      action: "Review the rejected plan before drafting again."
+    };
+  }
+
+  if (plan.blockedReasons.length > 0) {
+    return {
+      tone: "blocked",
+      label: "Blocked",
+      detail: `${pluralize(plan.blockedReasons.length, "blocker", "blockers")} must be resolved before approval.`,
+      action: "Review blockers in Command Center."
+    };
+  }
+
+  return {
+    tone: "ready",
+    label: "Review",
+    detail: "Draft plan is waiting for user approval.",
+    action: "Review and approve in Command Center."
+  };
 }
 
 function buildCommandIntentChecklist(
@@ -3824,6 +3867,7 @@ export function App(): ReactElement {
   );
   const chatCommandPlanCue = buildChatCommandPlanCue(draft, commandPolicy);
   const preparedChatPlan = chatCommandPlanCue ? findPreparedChatPlan(chatCommandPlanCue.command, recentCommandPlans) : null;
+  const preparedChatPlanGuide = preparedChatPlan ? buildChatPreparedPlanGuide(preparedChatPlan) : null;
   const isChatRunning = chatState?.runStatus === "running";
   const latestThinkingMessage = useMemo(() => findLatestThinkingMessage(messages), [messages]);
   const latestThinkingTrace: ChatThinkingTrace | null = latestThinkingMessage?.thinkingTrace ?? null;
@@ -6834,6 +6878,13 @@ export function App(): ReactElement {
                     <span>{preparedChatPlan.status}</span>
                   </div>
                   <p>{preparedChatPlan.summary}</p>
+                  {preparedChatPlanGuide ? (
+                    <aside className={`chat-prepared-plan-guide ${preparedChatPlanGuide.tone}`} aria-label="Prepared plan next action">
+                      <strong>{preparedChatPlanGuide.label}</strong>
+                      <span>{preparedChatPlanGuide.detail}</span>
+                      <small>{preparedChatPlanGuide.action}</small>
+                    </aside>
+                  ) : null}
                   <button type="button" onClick={() => reviewPreparedChatPlan(preparedChatPlan)}>
                     Review Plan
                   </button>

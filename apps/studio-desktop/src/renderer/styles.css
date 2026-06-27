@@ -532,6 +532,36 @@ textarea {
   font-size: 12px;
 }
 
+.chat-prepared-plan-guide {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  border-left: 3px solid #2f6fb3;
+  border-radius: 6px;
+  background: #f6f9fd;
+  padding: 7px 9px;
+}
+
+.chat-prepared-plan-guide strong,
+.chat-prepared-plan-guide span,
+.chat-prepared-plan-guide small {
+  font-size: 12px;
+}
+
+.chat-prepared-plan-guide span,
+.chat-prepared-plan-guide small {
+  color: #4b5563;
+}
+
+.chat-prepared-plan-guide.approved {
+  border-left-color: #09815c;
+}
+
+.chat-prepared-plan-guide.rejected,
+.chat-prepared-plan-guide.blocked {
+  border-left-color: #b42318;
+}
+
 .chat-prepared-plan button {
   margin-top: 8px;
   width: 100%;
