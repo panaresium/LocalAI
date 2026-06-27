@@ -900,6 +900,14 @@ function buildChatCommandPlanCue(
   };
 }
 
+function findPreparedChatPlan(command: string, plans: readonly CommandPlan[]): CommandPlan | null {
+  const trimmedCommand = command.trim();
+  if (!trimmedCommand) {
+    return null;
+  }
+  return plans.find((plan) => plan.command === trimmedCommand) ?? null;
+}
+
 function buildCommandIntentChecklist(
   command: string,
   routePreview: CommandComposerRoutePreview,
@@ -3467,6 +3475,15 @@ export function App(): ReactElement {
     }
   }
 
+  function reviewPreparedChatPlan(plan: CommandPlan): void {
+    setCommandPlanFilter("all");
+    setSelectedCommandPlanId(plan.id);
+    setCommandText(plan.command);
+    setCommandHandoffMessage(null);
+    setCommandMessage(`Review ${plan.title} before approval.`);
+    setActiveWorkspace("command");
+  }
+
   async function reviewCommandPlan(planId: string, decision: "approve" | "reject"): Promise<void> {
     try {
       const defaultReviewNote = decision === "approve" ? "Approved from Command Center." : "Rejected from Command Center.";
@@ -3806,6 +3823,7 @@ export function App(): ReactElement {
     commandPolicy?.requiresApproval ?? true
   );
   const chatCommandPlanCue = buildChatCommandPlanCue(draft, commandPolicy);
+  const preparedChatPlan = chatCommandPlanCue ? findPreparedChatPlan(chatCommandPlanCue.command, recentCommandPlans) : null;
   const isChatRunning = chatState?.runStatus === "running";
   const latestThinkingMessage = useMemo(() => findLatestThinkingMessage(messages), [messages]);
   const latestThinkingTrace: ChatThinkingTrace | null = latestThinkingMessage?.thinkingTrace ?? null;
@@ -6808,6 +6826,18 @@ export function App(): ReactElement {
               </dl>
               {chatCommandPlanCue.blockedTerms.length > 0 ? (
                 <small>{pluralize(chatCommandPlanCue.blockedTerms.length, "blocked term", "blocked terms")} must be revised first.</small>
+              ) : null}
+              {preparedChatPlan ? (
+                <section className={`chat-prepared-plan status-${preparedChatPlan.status}`} aria-label="Prepared chat command plan">
+                  <div>
+                    <strong>{preparedChatPlan.title}</strong>
+                    <span>{preparedChatPlan.status}</span>
+                  </div>
+                  <p>{preparedChatPlan.summary}</p>
+                  <button type="button" onClick={() => reviewPreparedChatPlan(preparedChatPlan)}>
+                    Review Plan
+                  </button>
+                </section>
               ) : null}
               <ol className="chat-plan-next-steps" aria-label="Chat plan next steps">
                 {chatCommandPlanCue.nextSteps.map((step) => (

@@ -501,6 +501,43 @@ textarea {
   font-weight: 650;
 }
 
+.chat-prepared-plan {
+  margin-top: 8px;
+  border-top: 1px solid #d8e7f7;
+  padding-top: 8px;
+}
+
+.chat-prepared-plan div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.chat-prepared-plan.status-draft span {
+  color: #0b4f8a;
+}
+
+.chat-prepared-plan.status-approved span {
+  color: #067647;
+}
+
+.chat-prepared-plan.status-rejected span {
+  color: #b42318;
+}
+
+.chat-prepared-plan p {
+  margin: 6px 0 0;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.chat-prepared-plan button {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 32px;
+}
+
 .chat-plan-next-steps {
   display: grid;
   gap: 6px;

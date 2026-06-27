@@ -1,6 +1,58 @@
 # STATUS
 
-Last updated: 2026-06-27 16:42 Asia/Bangkok
+Last updated: 2026-06-27 16:50 Asia/Bangkok
+
+## Post-Milestone UX Pass 46 - Chat Prepared Plan Status
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 16:50 Asia/Bangkok.
+
+## Chat Prepared Plan Status Completed
+
+- Added prepared-plan status to the Chat command-plan cue.
+- Chat now detects when the current draft already has a matching Command Center plan.
+- Added a compact status strip showing the prepared plan title, summary, and review status.
+- Added a `Review Plan` action that returns the user to Command Center review for the matching plan.
+- The review action only selects the existing plan and opens Command Center.
+- No approval, execution, shell access, or OS handoff occurs from the Chat cue.
+- Kept the Chat composer simple with no extra configuration controls.
+- Added `scripts\test-chat-prepared-plan-status.ps1`.
+- Added `scripts\run-post-milestone-ux46.ps1`.
+- Added post-milestone UX chat prepared-plan status tests.
+
+## Chat Prepared Plan Status Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat prepared-plan status validation passes.
+- Full post-milestone UX node regression passes with 194 tests.
+- The Chat cue can find the existing plan for the current draft.
+- The Chat cue can open the existing plan for review without approving or executing it.
+- No silent execution, approval bypass, shell access, or new OS privilege path was added.
+
+## Chat Prepared Plan Status Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux46.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat prepared-plan status validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux46/run-summary.json`
+- `artifacts/post-milestone-ux46/chat-prepared-plan-status.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-prepared-plan-status.test.mjs`
+- `scripts/test-chat-prepared-plan-status.ps1`
+- `scripts/run-post-milestone-ux46.ps1`
 
 ## Post-Milestone UX Pass 45 - Chat Plan Next Steps
 
