@@ -7,6 +7,13 @@ export type ModelLifecycleClass = "pinned" | "warm" | "on-demand" | "batch" | "e
 export type ModelPrivacyPreset = "offline-secure" | "local-preferred" | "balanced-hybrid" | "best-quality" | "lowest-cost" | "manual";
 export type ModelLifecycleAction = "load" | "unload";
 export type ModelBenchmarkStatus = "passed" | "failed";
+export type ModelTaskProfileId =
+  | "computer-control"
+  | "knowledge-research"
+  | "code-change"
+  | "creative-media"
+  | "conversation";
+export type ModelMemoryRecommendationStatus = "ok" | "constrained" | "critical";
 
 export interface ModelProviderHealth {
   readonly state: ModelHealthState;
@@ -75,12 +82,32 @@ export interface ModelBenchmarkResult {
   readonly checkedAt: string;
 }
 
+export interface ModelTaskProfile {
+  readonly id: ModelTaskProfileId;
+  readonly label: string;
+  readonly description: string;
+  readonly orchestratorRole: ModelRoleAlias;
+  readonly specialistRoles: readonly ModelRoleAlias[];
+  readonly loadPolicy: string;
+  readonly unloadPolicy: string;
+  readonly confidenceFloor: number;
+}
+
+export interface ModelMemoryRecommendation {
+  readonly status: ModelMemoryRecommendationStatus;
+  readonly loadedModelCount: number;
+  readonly freeMemoryBytes: number;
+  readonly recommendation: string;
+}
+
 export interface ModelFabricState {
   readonly providers: readonly ModelProviderStatus[];
   readonly models: readonly ModelRegistryEntry[];
   readonly routes: readonly ModelRoleRoute[];
   readonly resources: ModelResourceSnapshot;
   readonly benchmarks: readonly ModelBenchmarkResult[];
+  readonly taskProfiles: readonly ModelTaskProfile[];
+  readonly memoryRecommendation: ModelMemoryRecommendation;
 }
 
 export interface RouteModelRoleRequest {

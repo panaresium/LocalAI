@@ -1,4 +1,5 @@
 export const MODEL_ROLE_ALIASES = [
+  "orchestrator.primary",
   "controller.fast",
   "agent.general",
   "agent.deep",

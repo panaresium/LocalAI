@@ -2067,7 +2067,7 @@ export function App(): ReactElement {
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<readonly string[]>([]);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [fabricMessage, setFabricMessage] = useState<string | null>(null);
-  const [selectedModelRole, setSelectedModelRole] = useState<ModelRoleAlias>("controller.fast");
+  const [selectedModelRole, setSelectedModelRole] = useState<ModelRoleAlias>("orchestrator.primary");
   const [selectedPrivacyPreset, setSelectedPrivacyPreset] = useState<ModelPrivacyPreset>("offline-secure");
   const [selectedOverrideModelId, setSelectedOverrideModelId] = useState("");
   const [selectedLifecycleModelId, setSelectedLifecycleModelId] = useState("");
@@ -3923,8 +3923,9 @@ export function App(): ReactElement {
               <li key={plan.id} className={selectedCommandPlan?.id === plan.id ? "selected-command-plan" : ""}>
                 <strong>{plan.title} · {plan.status} · {plan.risk}</strong>
                 <span>{plan.summary}</span>
-                <span>{plan.route} · {plan.intent}</span>
+                <span>{plan.route} · {plan.intent} · {Math.round(plan.confidence * 100)}% confidence</span>
                 <span>Opens {workspaceLabel(workspaceForCommandRoute(plan.route))}</span>
+                {plan.referencesRequired ? <small>Reference knowledge required before approval.</small> : null}
                 {plan.blockedReasons.length > 0 ? <small>{plan.blockedReasons.join(" ")}</small> : null}
                 <div className="inline-actions">
                   <button
@@ -3979,10 +3980,42 @@ export function App(): ReactElement {
               <div className="command-review-meta">
                 <span>{selectedCommandPlan.risk}</span>
                 <span>{selectedCommandPlan.route}</span>
+                <span>{Math.round(selectedCommandPlan.confidence * 100)}% confidence</span>
                 <span>{workspaceLabel(workspaceForCommandRoute(selectedCommandPlan.route))}</span>
               </div>
               <strong className="command-review-title">{selectedCommandPlan.title}</strong>
               <p>{selectedCommandPlan.summary}</p>
+              <div
+                className={`command-orchestration ${selectedCommandPlan.referencesRequired ? "blocked" : "ready"}`}
+                aria-label="Command model orchestration"
+              >
+                <div>
+                  <span>Orchestrator</span>
+                  <strong>{selectedCommandPlan.modelOrchestration.orchestratorRole}</strong>
+                </div>
+                <div>
+                  <span>Specialists</span>
+                  <strong>{selectedCommandPlan.modelOrchestration.specialistRoles.join(", ")}</strong>
+                </div>
+                <div>
+                  <span>Confidence</span>
+                  <strong>{Math.round(selectedCommandPlan.confidence * 100)}% / {Math.round(selectedCommandPlan.confidenceThreshold * 100)}%</strong>
+                </div>
+                <div>
+                  <span>Load</span>
+                  <strong>{selectedCommandPlan.modelOrchestration.loadPlan}</strong>
+                </div>
+                <div>
+                  <span>Unload</span>
+                  <strong>{selectedCommandPlan.modelOrchestration.unloadPlan}</strong>
+                </div>
+                <small>{selectedCommandPlan.modelOrchestration.memoryPlan}</small>
+              </div>
+              <ol className="command-reference-list" aria-label="Command reference queries">
+                {selectedCommandPlan.referenceQueries.map((query) => (
+                  <li key={query}>{query}</li>
+                ))}
+              </ol>
               {selectedCommandReviewBrief ? (
                 <div
                   className={`command-review-brief ${selectedCommandReviewBrief.tone}`}
@@ -5815,6 +5848,29 @@ export function App(): ReactElement {
                 <strong>{provider.label}</strong>
                 <span>{provider.enabled ? "enabled" : "disabled"} · {provider.privacyBoundary}</span>
                 <small>{provider.health.detail}</small>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="admin-panel">
+          <div className="panel-heading">
+            <h2>Orchestrator</h2>
+            <span>{modelFabricState?.memoryRecommendation.status ?? "unknown"}</span>
+          </div>
+          <div className="route-detail">
+            <strong>{modelFabricState?.routes.find((route) => route.role === "orchestrator.primary")?.selectedModelId ?? "No orchestrator selected"}</strong>
+            <span>{modelFabricState?.routes.find((route) => route.role === "orchestrator.primary")?.reason ?? "Refresh to inspect the orchestrator route."}</span>
+            <span>{modelFabricState?.memoryRecommendation.recommendation ?? "Memory guidance is unavailable."}</span>
+          </div>
+          <ol className="task-profile-list" aria-label="Model task profiles">
+            {(modelFabricState?.taskProfiles ?? []).map((profile) => (
+              <li key={profile.id}>
+                <strong>{profile.label}</strong>
+                <span>{profile.description}</span>
+                <small>{profile.orchestratorRole} to {profile.specialistRoles.join(", ")}</small>
+                <small>{profile.loadPolicy}</small>
+                <small>{profile.unloadPolicy}</small>
               </li>
             ))}
           </ol>

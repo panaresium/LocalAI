@@ -1,6 +1,67 @@
 # STATUS
 
-Last updated: 2026-06-27 09:41 Asia/Bangkok
+Last updated: 2026-06-27 10:30 Asia/Bangkok
+
+## Post-Milestone UX Pass 37 - Model Orchestration Confidence
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 10:30 Asia/Bangkok.
+
+## Model Orchestration Confidence Completed
+
+- Added a registered `orchestrator.primary` model role.
+- Model Fabric now routes a pinned local orchestrator model before specialist roles.
+- Added task profiles for computer control, knowledge research, code change, creative media, and conversation.
+- Each task profile defines the orchestrator, specialist roles, load policy, unload policy, and 90% confidence floor.
+- Added local memory guidance based on loaded Ollama model count and available RAM.
+- Command Center plans now include confidence, confidence threshold, reference requirements, reference queries, and model orchestration metadata.
+- Low-confidence plans below 90% are blocked from approval until reference knowledge is gathered.
+- The Singapore time/date example now routes to a high-confidence computer-control plan with `agent.verify` and `vision.ui_grounding` specialists.
+- Command review now shows the orchestrator, specialist team, load plan, unload plan, memory plan, confidence, and reference queries.
+- Model Fabric now shows the orchestrator route, memory recommendation, and task profiles in the Studio UI.
+- Added `scripts\test-model-orchestration-confidence.ps1`.
+- Added `scripts\run-post-milestone-ux37.ps1`.
+- Added post-milestone UX model orchestration confidence tests.
+
+## Model Orchestration Confidence Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused model orchestration confidence validation passes.
+- Full post-milestone UX node regression passes with 153 tests.
+- Command Center remains local-planning-only with external AI planning disabled.
+- Approval is still required before handoff.
+- Renderer remains isolated from Node and OS privileges.
+- No shell, direct OS execution, credential entry, silent elevation, or hidden autonomous execution path was added.
+
+## Model Orchestration Confidence Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux37.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: model orchestration confidence validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux37/run-summary.json`
+- `artifacts/post-milestone-ux37/model-orchestration-confidence.json`
+- `apps/studio-desktop/src/main/model-fabric-manager.ts`
+- `apps/studio-desktop/src/main/command-center-manager.ts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `packages/contracts/src/model-roles.ts`
+- `packages/contracts/src/model-fabric.ts`
+- `packages/contracts/src/command-center.ts`
+- `tests/post-milestone-ux/model-orchestration-confidence.test.mjs`
+- `scripts/test-model-orchestration-confidence.ps1`
+- `scripts/run-post-milestone-ux37.ps1`
 
 ## Post-Milestone UX Pass 36 - Studio Header Context
 

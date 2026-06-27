@@ -1,3 +1,5 @@
+import type { ModelRoleAlias } from "./model-roles.js";
+
 export type CommandCenterIntent =
   | "chat"
   | "backup"
@@ -81,6 +83,14 @@ export interface CommandPlanStep {
   readonly requiresApproval: boolean;
 }
 
+export interface CommandPlanModelOrchestration {
+  readonly orchestratorRole: ModelRoleAlias;
+  readonly specialistRoles: readonly ModelRoleAlias[];
+  readonly loadPlan: string;
+  readonly unloadPlan: string;
+  readonly memoryPlan: string;
+}
+
 export interface CommandPlan {
   readonly id: string;
   readonly command: string;
@@ -95,6 +105,11 @@ export interface CommandPlan {
   readonly reviewedAt: string | null;
   readonly reviewNote: string | null;
   readonly blockedReasons: readonly string[];
+  readonly confidence: number;
+  readonly confidenceThreshold: number;
+  readonly referencesRequired: boolean;
+  readonly referenceQueries: readonly string[];
+  readonly modelOrchestration: CommandPlanModelOrchestration;
   readonly steps: readonly CommandPlanStep[];
 }
 

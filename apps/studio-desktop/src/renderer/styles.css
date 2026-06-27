@@ -1937,6 +1937,63 @@ textarea {
   background: #f8fafc;
 }
 
+.command-orchestration {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+  border: 1px solid #d8dee4;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fbfcfd;
+}
+
+.command-orchestration.ready {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.command-orchestration.blocked {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.command-orchestration div,
+.command-orchestration small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.command-orchestration span,
+.command-orchestration strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.command-orchestration span {
+  color: #66707b;
+  font-size: 12px;
+}
+
+.command-orchestration strong {
+  margin-top: 3px;
+  font-size: 13px;
+}
+
+.command-orchestration small {
+  grid-column: 1 / -1;
+  color: #3d4651;
+  font-size: 12px;
+}
+
+.command-reference-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  color: #66707b;
+  font-size: 12px;
+}
+
 .command-step-summary {
   display: grid;
   grid-template-columns: 0.7fr 0.8fr 1.5fr;
@@ -2532,6 +2589,7 @@ textarea {
 }
 
 .provider-list,
+.task-profile-list,
 .citation-list,
 .validation-list {
   list-style: none;
@@ -2540,6 +2598,7 @@ textarea {
 }
 
 .provider-list li,
+.task-profile-list li,
 .citation-list li,
 .validation-list li {
   border-top: 1px solid #edf1f5;
@@ -2547,9 +2606,19 @@ textarea {
   font-size: 13px;
 }
 
+.task-profile-list li {
+  border: 1px solid #edf1f5;
+  border-radius: 6px;
+  padding: 9px;
+  background: #ffffff;
+}
+
 .provider-list strong,
 .provider-list span,
 .provider-list small,
+.task-profile-list strong,
+.task-profile-list span,
+.task-profile-list small,
 .citation-list strong,
 .citation-list span,
 .validation-list strong,
@@ -2560,6 +2629,8 @@ textarea {
 
 .provider-list span,
 .provider-list small,
+.task-profile-list span,
+.task-profile-list small,
 .citation-list span,
 .validation-list span {
   margin-top: 3px;

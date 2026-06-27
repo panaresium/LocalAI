@@ -5,6 +5,7 @@ import type {
   ModelBenchmarkResult,
   ModelFabricState,
   ModelLifecycleRequest,
+  ModelMemoryRecommendation,
   ModelPlanValidationError,
   ModelPlanValidationResult,
   ModelPrivacyPreset,
@@ -14,6 +15,7 @@ import type {
   ModelResourceSnapshot,
   ModelRoleAlias,
   ModelRoleRoute,
+  ModelTaskProfile,
   RouteModelRoleRequest,
   RunModelBenchmarkRequest,
   ValidateModelPlanRequest
@@ -84,6 +86,7 @@ export interface ModelFabricManagerOptions {
 const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 const DEFAULT_PRIVACY_PRESET: ModelPrivacyPreset = "offline-secure";
 const MODEL_FABRIC_ROLE_ALIASES: readonly ModelRoleAlias[] = [
+  "orchestrator.primary",
   "controller.fast",
   "agent.general",
   "agent.deep",
@@ -121,6 +124,58 @@ const DIRECT_OS_TOOL_PREFIXES = [
   "powershell.",
   "filesystem.",
   "file."
+];
+const MODEL_TASK_PROFILES: readonly ModelTaskProfile[] = [
+  {
+    id: "computer-control",
+    label: "Computer control",
+    description: "Plan OS and UI tasks with observation, verification, and broker-only action handoff.",
+    orchestratorRole: "orchestrator.primary",
+    specialistRoles: ["agent.verify", "vision.ui_grounding"],
+    loadPolicy: "Keep the orchestrator warm; load UI grounding only when screen observation or element verification is needed.",
+    unloadPolicy: "Unload on-demand vision specialists after the approved task is verified.",
+    confidenceFloor: 0.9
+  },
+  {
+    id: "knowledge-research",
+    label: "Knowledge research",
+    description: "Gather trusted local context and use retrieval specialists before answer or action planning.",
+    orchestratorRole: "orchestrator.primary",
+    specialistRoles: ["retrieval.embedding", "agent.summarize", "agent.verify"],
+    loadPolicy: "Keep embeddings available for batch retrieval and warm the verifier for citation checks.",
+    unloadPolicy: "Release summarization and verifier models after the answer or plan is reviewed.",
+    confidenceFloor: 0.9
+  },
+  {
+    id: "code-change",
+    label: "Code change",
+    description: "Route implementation through code, review, and verification specialists.",
+    orchestratorRole: "orchestrator.primary",
+    specialistRoles: ["agent.code", "agent.verify", "agent.summarize"],
+    loadPolicy: "Warm code and verifier roles while tests are running; avoid loading unrelated media models.",
+    unloadPolicy: "Unload non-pinned code specialists after validation completes.",
+    confidenceFloor: 0.9
+  },
+  {
+    id: "creative-media",
+    label: "Creative media",
+    description: "Coordinate prompt, image, vision, and verification roles for generated media workflows.",
+    orchestratorRole: "orchestrator.primary",
+    specialistRoles: ["image.generate", "image.edit", "image.verify"],
+    loadPolicy: "Load generation/edit models one at a time and keep the verifier separate for review.",
+    unloadPolicy: "Unload exclusive generation models immediately after artifacts are saved and verified.",
+    confidenceFloor: 0.9
+  },
+  {
+    id: "conversation",
+    label: "Conversation",
+    description: "Use a fast local orchestrator with optional deep and summarization specialists.",
+    orchestratorRole: "orchestrator.primary",
+    specialistRoles: ["agent.general", "agent.deep", "agent.summarize"],
+    loadPolicy: "Keep the fast orchestrator pinned and warm deeper specialists only for complex prompts.",
+    unloadPolicy: "Unload deep specialists after the conversation turn when memory pressure is constrained.",
+    confidenceFloor: 0.9
+  }
 ];
 
 const PROVIDERS: readonly SeedProvider[] = [
@@ -177,7 +232,7 @@ const SEED_MODELS: readonly SeedModel[] = [
     providerId: "ollama",
     model: "qwen3.5:4b",
     label: "Qwen3.5 4B",
-    roles: ["controller.fast", "agent.general", "agent.summarize", "agent.verify", "translation.fast"],
+    roles: ["orchestrator.primary", "controller.fast", "agent.general", "agent.summarize", "agent.verify", "translation.fast"],
     lifecycle: "pinned",
     contextLength: 65536,
     capabilities: ["text", "structured-output", "local"],
@@ -244,6 +299,7 @@ export class ModelFabricManager {
     const providers = this.buildProviderStatuses(ollama.health);
     const models = this.buildModelRegistry(ollama);
     const resources = this.buildResourceSnapshot(ollama);
+    const memoryRecommendation = buildMemoryRecommendation(resources);
     const routes = MODEL_FABRIC_ROLE_ALIASES.map((role) => this.routeWithRegistry(models, providers, {
       role,
       privacyPreset: DEFAULT_PRIVACY_PRESET,
@@ -255,7 +311,9 @@ export class ModelFabricManager {
       models,
       routes,
       resources,
-      benchmarks: [...this.benchmarks]
+      benchmarks: [...this.benchmarks],
+      taskProfiles: MODEL_TASK_PROFILES,
+      memoryRecommendation
     };
   }
 
@@ -670,6 +728,35 @@ function buildRouteReason(model: ModelRegistryEntry, isOverride: boolean): strin
   const source = isOverride ? "User override selected" : "Selected by local-first score";
   const loaded = model.loaded ? "loaded" : "not loaded";
   return `${source}: ${model.label} (${model.lifecycle}, ${loaded}).`;
+}
+
+function buildMemoryRecommendation(resources: ModelResourceSnapshot): ModelMemoryRecommendation {
+  const loadedModelCount = resources.ollamaLoadedModels.length;
+  const freeRatio = resources.totalMemoryBytes > 0
+    ? resources.freeMemoryBytes / resources.totalMemoryBytes
+    : 0;
+  if (freeRatio < 0.12 || loadedModelCount >= 4) {
+    return {
+      status: "critical",
+      loadedModelCount,
+      freeMemoryBytes: resources.freeMemoryBytes,
+      recommendation: "Unload on-demand and exclusive specialists before loading another task model."
+    };
+  }
+  if (freeRatio < 0.25 || loadedModelCount >= 2) {
+    return {
+      status: "constrained",
+      loadedModelCount,
+      freeMemoryBytes: resources.freeMemoryBytes,
+      recommendation: "Keep the orchestrator warm and load one specialist at a time for the active task."
+    };
+  }
+  return {
+    status: "ok",
+    loadedModelCount,
+    freeMemoryBytes: resources.freeMemoryBytes,
+    recommendation: "Keep the orchestrator warm; specialists can be loaded on demand."
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
