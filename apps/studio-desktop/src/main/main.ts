@@ -15,6 +15,7 @@ import type {
   ComputerActionRisk,
   ComputerActionVerificationRequest,
   AppAdapterActionKind,
+  ConfigureModelTaskRouteRequest,
   CreateCommandPlanRequest,
   ConfirmElevatedHelperSessionRequest,
   CreateInstallerManifestRequest,
@@ -37,6 +38,7 @@ import type {
   CreateTeachReplayRequest,
   GenerateTeachWorkflowRequest,
   Milestone8ActiveAction,
+  ModelDownloadRequest,
   ModelLifecycleRequest,
   ProposeComputerActionRequest,
   ProposeMemoryCandidateRequest,
@@ -288,6 +290,12 @@ function registerIpcHandlers(): void {
   });
   ipcMain.handle("studio:modelLifecycle", async (_event, request: unknown) => {
     return modelFabricManager.lifecycle(parseModelLifecycleRequest(request));
+  });
+  ipcMain.handle("studio:downloadMarketplaceModel", async (_event, request: unknown) => {
+    return modelFabricManager.downloadMarketplaceModel(parseModelDownloadRequest(request));
+  });
+  ipcMain.handle("studio:configureModelTaskRoute", async (_event, request: unknown) => {
+    return modelFabricManager.configureTaskRoute(parseConfigureModelTaskRouteRequest(request));
   });
   ipcMain.handle("studio:runModelBenchmark", async (_event, request: unknown) => {
     return modelFabricManager.benchmark(parseRunModelBenchmarkRequest(request));
@@ -783,6 +791,35 @@ function parseModelLifecycleRequest(value: unknown): ModelLifecycleRequest {
     modelId: value.modelId,
     action: value.action,
     ...(value.keepAliveSeconds === undefined ? {} : { keepAliveSeconds: value.keepAliveSeconds })
+  };
+}
+
+function parseModelDownloadRequest(value: unknown): ModelDownloadRequest {
+  if (!isRecord(value) || typeof value.marketplaceEntryId !== "string" || value.marketplaceEntryId.trim().length === 0) {
+    throw new Error("Invalid model download request.");
+  }
+
+  return {
+    marketplaceEntryId: value.marketplaceEntryId
+  };
+}
+
+function parseConfigureModelTaskRouteRequest(value: unknown): ConfigureModelTaskRouteRequest {
+  if (
+    !isRecord(value) ||
+    !isModelTaskProfileId(value.taskProfileId) ||
+    !isModelRoleAlias(value.role) ||
+    !isPrivacyPreset(value.privacyPreset) ||
+    (value.modelId !== null && typeof value.modelId !== "string")
+  ) {
+    throw new Error("Invalid model task route request.");
+  }
+
+  return {
+    taskProfileId: value.taskProfileId,
+    role: value.role,
+    privacyPreset: value.privacyPreset,
+    modelId: value.modelId
   };
 }
 

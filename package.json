@@ -131,7 +131,9 @@
     "test:chat-prepared-plan-guide": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-prepared-plan-guide.ps1",
     "test:post-milestone-ux48": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux48.ps1",
     "test:chat-model-team-learn": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-model-team-learn.ps1",
-    "test:post-milestone-ux49": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux49.ps1"
+    "test:post-milestone-ux49": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux49.ps1",
+    "test:model-marketplace-download": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-marketplace-download.ps1",
+    "test:post-milestone-ux50": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux50.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

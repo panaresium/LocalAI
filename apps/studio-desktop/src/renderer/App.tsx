@@ -978,7 +978,7 @@ function buildChatModelTeamForPrompt(
     privacyPreset,
     orchestratorRole: profile.orchestratorRole,
     specialistRoles: profile.specialistRoles,
-    assignments: roles.map((role) => buildChatModelAssignment(role, fabricState)),
+    assignments: roles.map((role) => buildChatModelAssignment(role, fabricState, profile.id)),
     loadPlan: profile.loadPolicy,
     unloadPlan: profile.unloadPolicy,
     memoryPlan: fabricState.memoryRecommendation.recommendation,
@@ -1003,17 +1003,27 @@ function selectChatTaskProfileIdForPrompt(prompt: string): ModelTaskProfileId {
   return "conversation";
 }
 
-function buildChatModelAssignment(role: ModelRoleAlias, fabricState: ModelFabricState): ChatModelAssignment {
+function buildChatModelAssignment(
+  role: ModelRoleAlias,
+  fabricState: ModelFabricState,
+  taskProfileId?: ModelTaskProfileId
+): ChatModelAssignment {
   const route = fabricState.routes.find((item) => item.role === role) ?? null;
-  const model = route?.selectedModelId
-    ? fabricState.models.find((item) => item.id === route.selectedModelId) ?? null
+  const taskAssignment = taskProfileId
+    ? fabricState.taskRoutePresets
+      .find((preset) => preset.taskProfileId === taskProfileId)
+      ?.assignments.find((assignment) => assignment.role === role) ?? null
     : null;
-  const providerId = route?.providerId ?? model?.providerId ?? null;
+  const selectedModelId = taskAssignment?.selectedModelId ?? route?.selectedModelId ?? null;
+  const model = selectedModelId
+    ? fabricState.models.find((item) => item.id === selectedModelId) ?? null
+    : null;
+  const providerId = taskAssignment?.providerId ?? route?.providerId ?? model?.providerId ?? null;
   const provider = providerId ? fabricState.providers.find((item) => item.id === providerId) ?? null : null;
 
   return {
     role,
-    modelId: route?.selectedModelId ?? null,
+    modelId: selectedModelId,
     model: model?.model ?? null,
     label: model?.label ?? null,
     providerId,
@@ -1021,12 +1031,19 @@ function buildChatModelAssignment(role: ModelRoleAlias, fabricState: ModelFabric
     lifecycle: model?.lifecycle ?? null,
     installed: model?.installed ?? false,
     loaded: model?.loaded ?? false,
-    reason: route?.reason ?? "No Model Fabric route is available for this role."
+    reason: taskAssignment?.routeReason ?? route?.reason ?? "No Model Fabric route is available for this role."
   };
 }
 
 function uniqueModelRoles(roles: readonly ModelRoleAlias[]): readonly ModelRoleAlias[] {
   return [...new Set(roles)];
+}
+
+function getTaskProfileRoleOptions(profile: ModelFabricState["taskProfiles"][number] | null | undefined): readonly ModelRoleAlias[] {
+  if (!profile) {
+    return ["orchestrator.primary"];
+  }
+  return uniqueModelRoles([profile.orchestratorRole, ...profile.specialistRoles]);
 }
 
 function buildCommandIntentChecklist(
@@ -2434,6 +2451,8 @@ export function App(): ReactElement {
   const [selectedPrivacyPreset, setSelectedPrivacyPreset] = useState<ModelPrivacyPreset>("offline-secure");
   const [selectedOverrideModelId, setSelectedOverrideModelId] = useState("");
   const [selectedLifecycleModelId, setSelectedLifecycleModelId] = useState("");
+  const [selectedMarketplaceTaskProfileId, setSelectedMarketplaceTaskProfileId] = useState<ModelTaskProfileId>("conversation");
+  const [selectedMarketplaceTaskRole, setSelectedMarketplaceTaskRole] = useState<ModelRoleAlias>("agent.general");
   const [planDraft, setPlanDraft] = useState(DEFAULT_MODEL_PLAN);
   const [planValidation, setPlanValidation] = useState<ModelPlanValidationResult | null>(null);
   const [knowledgeBaseDraft, setKnowledgeBaseDraft] = useState<KnowledgeBaseDraft>({
@@ -2749,6 +2768,36 @@ export function App(): ReactElement {
       keepAliveSeconds: 300
     }));
     setFabricMessage(`${action === "load" ? "Loaded" : "Unloaded"} ${selectedLifecycleModelId}`);
+  }
+
+  async function downloadMarketplaceModel(marketplaceEntryId: string): Promise<void> {
+    const entry = modelFabricState?.marketplace.find((item) => item.id === marketplaceEntryId) ?? null;
+    setFabricMessage(`Downloading ${entry?.label ?? marketplaceEntryId} through local Ollama.`);
+    setModelFabricState(await window.hermesStudio.downloadMarketplaceModel({ marketplaceEntryId }));
+    setFabricMessage(`Downloaded ${entry?.label ?? marketplaceEntryId}.`);
+  }
+
+  async function preloadMarketplaceModel(modelId: string): Promise<void> {
+    const entry = modelFabricState?.marketplace.find((item) => item.modelId === modelId) ?? null;
+    setModelFabricState(await window.hermesStudio.modelLifecycle({
+      modelId,
+      action: "load",
+      keepAliveSeconds: 300
+    }));
+    setFabricMessage(`Preloaded ${entry?.label ?? modelId}.`);
+  }
+
+  async function configureTaskRouteWithModel(modelId: string | null): Promise<void> {
+    const state = await window.hermesStudio.configureModelTaskRoute({
+      taskProfileId: selectedMarketplaceTaskProfileId,
+      role: activeMarketplaceTaskRole,
+      modelId,
+      privacyPreset: selectedPrivacyPreset
+    });
+    setModelFabricState(state);
+    setFabricMessage(modelId
+      ? `Assigned ${modelId} to ${selectedMarketplaceTaskProfileId} / ${activeMarketplaceTaskRole}.`
+      : `Reset ${selectedMarketplaceTaskProfileId} / ${activeMarketplaceTaskRole} to auto route.`);
   }
 
   async function runModelBenchmark(): Promise<void> {
@@ -3823,6 +3872,22 @@ export function App(): ReactElement {
     (modelFabricState?.models ?? []).filter((model) => model.roles.includes(selectedModelRole))
   ), [modelFabricState, selectedModelRole]);
   const lifecycleModels = modelFabricState?.models ?? [];
+  const selectedMarketplaceTaskProfile = useMemo(() => (
+    modelFabricState?.taskProfiles.find((profile) => profile.id === selectedMarketplaceTaskProfileId)
+    ?? modelFabricState?.taskProfiles.find((profile) => profile.id === "conversation")
+    ?? null
+  ), [modelFabricState, selectedMarketplaceTaskProfileId]);
+  const marketplaceTaskRoleOptions = useMemo(() => (
+    getTaskProfileRoleOptions(selectedMarketplaceTaskProfile)
+  ), [selectedMarketplaceTaskProfile]);
+  const activeMarketplaceTaskRole = marketplaceTaskRoleOptions.includes(selectedMarketplaceTaskRole)
+    ? selectedMarketplaceTaskRole
+    : marketplaceTaskRoleOptions[0] ?? "orchestrator.primary";
+  const selectedTaskRouteAssignment = useMemo(() => (
+    modelFabricState?.taskRoutePresets
+      .find((preset) => preset.taskProfileId === selectedMarketplaceTaskProfile?.id)
+      ?.assignments.find((assignment) => assignment.role === activeMarketplaceTaskRole) ?? null
+  ), [activeMarketplaceTaskRole, modelFabricState, selectedMarketplaceTaskProfile]);
   const selectedKnowledgeBase = knowledgeState?.bases.find((base) => base.id === selectedKnowledgeBaseId) ?? null;
   const selectedKnowledgeDocuments = (knowledgeState?.documents ?? []).filter((document) => document.baseId === selectedKnowledgeBaseId);
   const pendingMemoryCandidates = (learningState?.memoryCandidates ?? []).filter((candidate) => candidate.status === "pending").slice(0, 5);
@@ -6486,6 +6551,95 @@ export function App(): ReactElement {
                 <small>{profile.unloadPolicy}</small>
               </li>
             ))}
+          </ol>
+        </section>
+
+        <section className="admin-panel marketplace-panel">
+          <div className="panel-heading">
+            <h2>Model Marketplace</h2>
+            <span>{modelFabricState?.marketplace.length ?? 0} listed</span>
+          </div>
+          <div className="form-row two">
+            <label>
+              <span>Task</span>
+              <select
+                value={selectedMarketplaceTaskProfileId}
+                onChange={(event) => {
+                  const nextProfileId = event.target.value as ModelTaskProfileId;
+                  const nextProfile = modelFabricState?.taskProfiles.find((profile) => profile.id === nextProfileId) ?? null;
+                  setSelectedMarketplaceTaskProfileId(nextProfileId);
+                  setSelectedMarketplaceTaskRole(getTaskProfileRoleOptions(nextProfile)[0] ?? "orchestrator.primary");
+                }}
+              >
+                {(modelFabricState?.taskProfiles ?? []).map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Role</span>
+              <select
+                value={activeMarketplaceTaskRole}
+                onChange={(event) => setSelectedMarketplaceTaskRole(event.target.value as ModelRoleAlias)}
+              >
+                {marketplaceTaskRoleOptions.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="route-detail compact">
+            <strong>{selectedTaskRouteAssignment?.selectedModelLabel ?? selectedTaskRouteAssignment?.selectedModelId ?? "Auto route pending"}</strong>
+            <span>{selectedTaskRouteAssignment?.routeReason ?? "Select a task role to inspect the active model assignment."}</span>
+          </div>
+          <div className="admin-actions">
+            <button type="button" onClick={() => void configureTaskRouteWithModel(null)}>
+              Auto Route Role
+            </button>
+          </div>
+          <ol className="marketplace-list" aria-label="Downloadable model marketplace">
+            {(modelFabricState?.marketplace ?? []).map((entry) => {
+              const roleCompatible = entry.roles.includes(activeMarketplaceTaskRole);
+              const taskRecommended = selectedMarketplaceTaskProfile
+                ? entry.recommendedTaskProfileIds.includes(selectedMarketplaceTaskProfile.id)
+                : false;
+              return (
+                <li key={entry.id} className={entry.downloadState}>
+                  <div className="marketplace-title">
+                    <strong>{entry.label}</strong>
+                    <span>{entry.downloadState}</span>
+                  </div>
+                  <span>{entry.description}</span>
+                  <small>{entry.model} · {entry.lifecycle} · {entry.contextLength.toLocaleString()} ctx</small>
+                  <small>{entry.capabilities.join(", ")}</small>
+                  <small>{taskRecommended ? "Recommended for selected task" : "Catalog model"} · {roleCompatible ? "role compatible" : "different specialty"}</small>
+                  <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Ollama catalog</a>
+                  <div className="marketplace-actions">
+                    <button
+                      type="button"
+                      disabled={entry.installed}
+                      onClick={() => void downloadMarketplaceModel(entry.id)}
+                    >
+                      Download
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!entry.installed || entry.loaded}
+                      onClick={() => void preloadMarketplaceModel(entry.modelId)}
+                    >
+                      Preload
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!entry.installed || !roleCompatible}
+                      onClick={() => void configureTaskRouteWithModel(entry.modelId)}
+                    >
+                      Use for Task
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </section>
 

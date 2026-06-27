@@ -1,6 +1,71 @@
 # STATUS
 
-Last updated: 2026-06-27 17:34 Asia/Bangkok
+Last updated: 2026-06-27 22:47 Asia/Bangkok
+
+## Post-Milestone UX Pass 50 - Model Marketplace Downloads and Task Routes
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 22:47 Asia/Bangkok.
+
+## Model Marketplace Downloads and Task Routes Completed
+
+- Added Model Fabric marketplace contracts for local catalog entries, download state, source URLs, install commands, recommended task profiles, and preload recommendations.
+- Added task route preset contracts so each task profile can expose role-specific selected models and overrides.
+- Expanded the local Ollama inventory catalog with the documented baseline and optional models.
+- Added main-process marketplace downloads through local Ollama `/api/pull` with `stream: false`.
+- Added task-profile model assignment through strict main-process validation:
+  - task profile must be known.
+  - role must belong to the selected task profile.
+  - model must exist, be installed, and support the selected role.
+- Added explicit renderer actions for:
+  - downloading a marketplace model.
+  - preloading an installed model through the existing lifecycle adapter.
+  - assigning or resetting a model for a task role.
+- Updated Chat model-team routing to prefer task-profile route presets before falling back to global role routes.
+- Added a Model Marketplace panel inside the Admin Model Fabric workspace.
+- Added `scripts\test-model-marketplace-download.ps1`.
+- Added `scripts\run-post-milestone-ux50.ps1`.
+- Added post-milestone UX marketplace download and task-route tests.
+
+## Model Marketplace Downloads and Task Routes Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused marketplace download and task-route validation passes.
+- Full post-milestone UX node regression passes with 212 tests.
+- Downloads are explicit user actions and route only through the local Ollama adapter.
+- The renderer still has no Node, shell, process, or require exposure.
+- No external AI call, credential handling path, automatic model download, silent preload, or approval bypass was added.
+
+## Model Marketplace Downloads and Task Routes Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux50.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: model marketplace download and task-route validation.
+- Passed: post-milestone UX node regression with 212 tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux50/run-summary.json`
+- `artifacts/post-milestone-ux50/model-marketplace-download.json`
+- `packages/contracts/src/model-fabric.ts`
+- `apps/studio-desktop/src/main/model-fabric-manager.ts`
+- `apps/studio-desktop/src/main/main.ts`
+- `apps/studio-desktop/src/preload/preload.cts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/studio-api.ts`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/model-marketplace-download.test.mjs`
+- `scripts/test-model-marketplace-download.ps1`
+- `scripts/run-post-milestone-ux50.ps1`
+- `package.json`
 
 ## Post-Milestone UX Pass 49 - Chat Model Team and Learn Command
 

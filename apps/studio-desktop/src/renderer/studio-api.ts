@@ -19,6 +19,7 @@ import type {
   ConfirmElevatedHelperSessionRequest,
   CreateAutomationRequest,
   CreateInstallerManifestRequest,
+  ConfigureModelTaskRouteRequest,
   ElevatedHelperState,
   GetComputerUiTreeRequest,
   GroundBrowserElementRequest,
@@ -45,6 +46,7 @@ import type {
   CreateTeachReplayRequest,
   GenerateTeachWorkflowRequest,
   ModelBenchmarkResult,
+  ModelDownloadRequest,
   ModelFabricState,
   ModelLifecycleRequest,
   ModelPlanValidationResult,
@@ -117,6 +119,8 @@ export interface StudioRendererApi {
   readonly getModelFabricState: () => Promise<ModelFabricState>;
   readonly routeModelRole: (request: RouteModelRoleRequest) => Promise<ModelFabricState["routes"][number]>;
   readonly modelLifecycle: (request: ModelLifecycleRequest) => Promise<ModelFabricState>;
+  readonly downloadMarketplaceModel: (request: ModelDownloadRequest) => Promise<ModelFabricState>;
+  readonly configureModelTaskRoute: (request: ConfigureModelTaskRouteRequest) => Promise<ModelFabricState>;
   readonly runModelBenchmark: (request: RunModelBenchmarkRequest) => Promise<ModelBenchmarkResult>;
   readonly validateModelPlan: (request: ValidateModelPlanRequest) => Promise<ModelPlanValidationResult>;
   readonly getKnowledgeState: () => Promise<KnowledgeRagState>;

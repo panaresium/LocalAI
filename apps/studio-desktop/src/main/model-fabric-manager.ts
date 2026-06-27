@@ -2,10 +2,13 @@ import { randomUUID } from "node:crypto";
 import { freemem, totalmem } from "node:os";
 
 import type {
+  ConfigureModelTaskRouteRequest,
   ModelBenchmarkResult,
+  ModelDownloadRequest,
   ModelFabricState,
   ModelLifecycleRequest,
   ModelMemoryRecommendation,
+  ModelMarketplaceEntry,
   ModelPlanValidationError,
   ModelPlanValidationResult,
   ModelPrivacyPreset,
@@ -15,6 +18,8 @@ import type {
   ModelResourceSnapshot,
   ModelRoleAlias,
   ModelRoleRoute,
+  ModelTaskProfileId,
+  ModelTaskRoutePreset,
   ModelTaskProfile,
   RouteModelRoleRequest,
   RunModelBenchmarkRequest,
@@ -40,6 +45,9 @@ interface SeedModel {
   readonly lifecycle: ModelRegistryEntry["lifecycle"];
   readonly contextLength: number;
   readonly capabilities: readonly string[];
+  readonly recommendedTaskProfileIds: readonly ModelTaskProfileId[];
+  readonly sourceUrl: string;
+  readonly preloadRecommended: boolean;
   readonly enabled: boolean;
   readonly local: boolean;
   readonly notes: string;
@@ -67,6 +75,11 @@ interface OllamaPsResponse {
 
 interface OllamaGenerateResponse {
   readonly response?: string;
+  readonly error?: string;
+}
+
+interface OllamaPullResponse {
+  readonly status?: string;
   readonly error?: string;
 }
 
@@ -236,6 +249,9 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "pinned",
     contextLength: 65536,
     capabilities: ["text", "structured-output", "local"],
+    recommendedTaskProfileIds: ["conversation", "computer-control"],
+    sourceUrl: "https://ollama.com/library/qwen3.5:4b",
+    preloadRecommended: true,
     enabled: true,
     local: true,
     notes: "Baseline local controller and general chat model."
@@ -249,6 +265,9 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "warm",
     contextLength: 65536,
     capabilities: ["text", "code", "structured-output", "local"],
+    recommendedTaskProfileIds: ["conversation", "code-change", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen3.5",
+    preloadRecommended: true,
     enabled: true,
     local: true,
     notes: "Stronger local text, reasoning, and code model."
@@ -262,6 +281,9 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "on-demand",
     contextLength: 32768,
     capabilities: ["vision", "image", "local"],
+    recommendedTaskProfileIds: ["computer-control", "creative-media", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen3-vl",
+    preloadRecommended: false,
     enabled: true,
     local: true,
     notes: "Baseline local vision model."
@@ -275,9 +297,76 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "batch",
     contextLength: 8192,
     capabilities: ["embedding", "retrieval", "local"],
+    recommendedTaskProfileIds: ["knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen3-embedding",
+    preloadRecommended: false,
     enabled: true,
     local: true,
     notes: "Baseline local embedding model for future knowledge indexing."
+  },
+  {
+    id: "ollama:qwen3.5:2b",
+    providerId: "ollama",
+    model: "qwen3.5:2b",
+    label: "Qwen3.5 2B",
+    roles: ["orchestrator.primary", "controller.fast", "agent.general", "agent.summarize", "translation.fast"],
+    lifecycle: "on-demand",
+    contextLength: 32768,
+    capabilities: ["text", "structured-output", "low-resource", "local"],
+    recommendedTaskProfileIds: ["conversation", "computer-control"],
+    sourceUrl: "https://ollama.com/library/qwen3.5",
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Optional low-resource local model for smaller machines."
+  },
+  {
+    id: "ollama:qwen3-vl:8b",
+    providerId: "ollama",
+    model: "qwen3-vl:8b",
+    label: "Qwen3 VL 8B",
+    roles: ["vision.general", "vision.ui_grounding", "vision.document", "vision.video", "image.verify"],
+    lifecycle: "on-demand",
+    contextLength: 32768,
+    capabilities: ["vision", "image", "document", "local"],
+    recommendedTaskProfileIds: ["computer-control", "creative-media", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen3-vl:8b",
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Optional stronger local vision model for UI grounding and document review."
+  },
+  {
+    id: "ollama:qwen3:0.6b",
+    providerId: "ollama",
+    model: "qwen3:0.6b",
+    label: "Qwen3 0.6B",
+    roles: ["controller.fast", "agent.summarize", "translation.fast"],
+    lifecycle: "on-demand",
+    contextLength: 32768,
+    capabilities: ["text", "low-resource", "local"],
+    recommendedTaskProfileIds: ["conversation"],
+    sourceUrl: "https://ollama.com/library/qwen3:0.6b",
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Optional ultra-small local text model for very constrained systems."
+  },
+  {
+    id: "ollama:qwen3.6:27b",
+    providerId: "ollama",
+    model: "qwen3.6:27b",
+    label: "Qwen3.6 27B",
+    roles: ["agent.deep", "agent.code", "agent.verify", "translation.quality"],
+    lifecycle: "exclusive",
+    contextLength: 65536,
+    capabilities: ["text", "code", "reasoning", "local"],
+    recommendedTaskProfileIds: ["code-change", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen3.6",
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Optional large local specialist. Download only when hardware memory is sufficient."
   }
 ];
 
@@ -287,6 +376,7 @@ export class ModelFabricManager {
   private readonly now: () => Date;
   private readonly benchmarks: ModelBenchmarkResult[] = [];
   private readonly routeOverrides = new Map<ModelRoleAlias, string>();
+  private readonly taskRouteOverrides = new Map<ModelTaskProfileId, Map<ModelRoleAlias, string>>();
 
   public constructor(options: ModelFabricManagerOptions = {}) {
     this.ollamaBaseUrl = removeTrailingSlash(options.ollamaBaseUrl ?? DEFAULT_OLLAMA_BASE_URL);
@@ -299,20 +389,24 @@ export class ModelFabricManager {
     const providers = this.buildProviderStatuses(ollama.health);
     const models = this.buildModelRegistry(ollama);
     const resources = this.buildResourceSnapshot(ollama);
+    const marketplace = this.buildMarketplace(models);
     const memoryRecommendation = buildMemoryRecommendation(resources);
     const routes = MODEL_FABRIC_ROLE_ALIASES.map((role) => this.routeWithRegistry(models, providers, {
       role,
       privacyPreset: DEFAULT_PRIVACY_PRESET,
       overrideModelId: this.routeOverrides.get(role) ?? null
     }));
+    const taskRoutePresets = this.buildTaskRoutePresets(models, providers);
 
     return {
       providers,
       models,
+      marketplace,
       routes,
       resources,
       benchmarks: [...this.benchmarks],
       taskProfiles: MODEL_TASK_PROFILES,
+      taskRoutePresets,
       memoryRecommendation
     };
   }
@@ -333,6 +427,77 @@ export class ModelFabricManager {
 
     const state = await this.getState();
     return this.routeWithRegistry(state.models, state.providers, request);
+  }
+
+  public async downloadMarketplaceModel(request: ModelDownloadRequest): Promise<ModelFabricState> {
+    if (typeof request.marketplaceEntryId !== "string" || request.marketplaceEntryId.trim().length === 0) {
+      throw new Error("Invalid marketplace model request.");
+    }
+
+    const entry = SEED_MODELS.find((model) => marketplaceEntryId(model.id) === request.marketplaceEntryId) ?? null;
+    if (!entry) {
+      throw new Error("Unknown marketplace model.");
+    }
+    if (entry.providerId !== "ollama" || !entry.local) {
+      throw new Error("Only local Ollama marketplace downloads are supported in this milestone.");
+    }
+
+    const response = await this.postOllama<OllamaPullResponse>("/api/pull", {
+      name: entry.model,
+      stream: false
+    });
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    return this.getState();
+  }
+
+  public async configureTaskRoute(request: ConfigureModelTaskRouteRequest): Promise<ModelFabricState> {
+    if (!isModelTaskProfileId(request.taskProfileId)) {
+      throw new Error("Invalid model task profile.");
+    }
+    if (!isModelRoleAlias(request.role)) {
+      throw new Error("Invalid model task role.");
+    }
+    if (!isPrivacyPreset(request.privacyPreset)) {
+      throw new Error("Invalid privacy preset.");
+    }
+
+    const profile = MODEL_TASK_PROFILES.find((entry) => entry.id === request.taskProfileId) ?? null;
+    if (!profile) {
+      throw new Error("Unknown model task profile.");
+    }
+    const profileRoles = uniqueModelRoles([profile.orchestratorRole, ...profile.specialistRoles]);
+    if (!profileRoles.includes(request.role)) {
+      throw new Error("Role is not part of the selected task profile.");
+    }
+
+    if (request.modelId === null) {
+      this.taskRouteOverrides.get(request.taskProfileId)?.delete(request.role);
+      return this.getState();
+    }
+
+    if (typeof request.modelId !== "string" || request.modelId.trim().length === 0) {
+      throw new Error("Invalid task model override.");
+    }
+
+    const state = await this.getState();
+    const model = state.models.find((entry) => entry.id === request.modelId) ?? null;
+    if (!model) {
+      throw new Error("Unknown model.");
+    }
+    if (!model.roles.includes(request.role)) {
+      throw new Error("Model is not assigned to the selected task role.");
+    }
+    if (!model.installed) {
+      throw new Error("Download the model before assigning it to a task.");
+    }
+
+    const profileOverrides = this.taskRouteOverrides.get(request.taskProfileId) ?? new Map<ModelRoleAlias, string>();
+    profileOverrides.set(request.role, model.id);
+    this.taskRouteOverrides.set(request.taskProfileId, profileOverrides);
+    return this.getState();
   }
 
   public async lifecycle(request: ModelLifecycleRequest): Promise<ModelFabricState> {
@@ -598,6 +763,69 @@ export class ModelFabricManager {
     }));
   }
 
+  private buildMarketplace(models: readonly ModelRegistryEntry[]): readonly ModelMarketplaceEntry[] {
+    const modelById = new Map(models.map((model) => [model.id, model]));
+    return SEED_MODELS.map((seed) => {
+      const model = modelById.get(seed.id);
+      const installed = model?.installed ?? false;
+      const loaded = model?.loaded ?? false;
+      return {
+        id: marketplaceEntryId(seed.id),
+        modelId: seed.id,
+        providerId: seed.providerId,
+        model: seed.model,
+        label: seed.label,
+        description: seed.notes,
+        roles: seed.roles,
+        lifecycle: seed.lifecycle,
+        contextLength: seed.contextLength,
+        capabilities: seed.capabilities,
+        recommendedTaskProfileIds: seed.recommendedTaskProfileIds,
+        sourceUrl: seed.sourceUrl,
+        installCommand: `ollama pull ${seed.model}`,
+        preloadRecommended: seed.preloadRecommended,
+        installed,
+        loaded,
+        downloadState: loaded ? "loaded" : installed ? "installed" : "available",
+        notes: seed.notes
+      };
+    });
+  }
+
+  private buildTaskRoutePresets(
+    models: readonly ModelRegistryEntry[],
+    providers: readonly ModelProviderStatus[]
+  ): readonly ModelTaskRoutePreset[] {
+    return MODEL_TASK_PROFILES.map((profile) => {
+      const overrides = this.taskRouteOverrides.get(profile.id);
+      const assignments = uniqueModelRoles([profile.orchestratorRole, ...profile.specialistRoles]).map((role) => {
+        const route = this.routeWithRegistry(models, providers, {
+          role,
+          privacyPreset: DEFAULT_PRIVACY_PRESET,
+          overrideModelId: overrides?.get(role) ?? this.routeOverrides.get(role) ?? null
+        });
+        const selectedModel = route.selectedModelId
+          ? models.find((model) => model.id === route.selectedModelId) ?? null
+          : null;
+        return {
+          taskProfileId: profile.id,
+          role,
+          selectedModelId: route.selectedModelId,
+          selectedModelLabel: selectedModel?.label ?? null,
+          overrideModelId: route.overrideModelId,
+          providerId: route.providerId,
+          routeReason: route.reason
+        };
+      });
+
+      return {
+        taskProfileId: profile.id,
+        taskProfileLabel: profile.label,
+        assignments
+      };
+    });
+  }
+
   private buildResourceSnapshot(ollama: OllamaSnapshot): ModelResourceSnapshot {
     return {
       checkedAt: this.now().toISOString(),
@@ -666,8 +894,24 @@ export function isPrivacyPreset(value: unknown): value is ModelPrivacyPreset {
     value === "manual";
 }
 
+export function isModelTaskProfileId(value: unknown): value is ModelTaskProfileId {
+  return value === "computer-control" ||
+    value === "knowledge-research" ||
+    value === "code-change" ||
+    value === "creative-media" ||
+    value === "conversation";
+}
+
 function removeTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function marketplaceEntryId(modelId: string): string {
+  return `market:${modelId}`;
+}
+
+function uniqueModelRoles(roles: readonly ModelRoleAlias[]): readonly ModelRoleAlias[] {
+  return [...new Set(roles)];
 }
 
 function extractOllamaModelNames(models: readonly { readonly name?: string; readonly model?: string }[]): readonly string[] {

@@ -3142,6 +3142,7 @@ textarea {
 
 .provider-list,
 .task-profile-list,
+.marketplace-list,
 .citation-list,
 .validation-list {
   list-style: none;
@@ -3151,6 +3152,7 @@ textarea {
 
 .provider-list li,
 .task-profile-list li,
+.marketplace-list li,
 .citation-list li,
 .validation-list li {
   border-top: 1px solid #edf1f5;
@@ -3165,12 +3167,57 @@ textarea {
   background: #ffffff;
 }
 
+.marketplace-list {
+  max-height: 520px;
+  overflow: auto;
+}
+
+.marketplace-list li {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #edf1f5;
+  border-left: 3px solid #8a94a3;
+  border-radius: 6px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.marketplace-list li.installed {
+  border-left-color: #2870b8;
+  background: #f7fbff;
+}
+
+.marketplace-list li.loaded {
+  border-left-color: #16a34a;
+  background: #f4fff8;
+}
+
+.marketplace-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.marketplace-title span {
+  border-radius: 999px;
+  background: #edf1f5;
+  color: #3d4651;
+  padding: 2px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
 .provider-list strong,
 .provider-list span,
 .provider-list small,
 .task-profile-list strong,
 .task-profile-list span,
 .task-profile-list small,
+.marketplace-list strong,
+.marketplace-list span,
+.marketplace-list small,
+.marketplace-list a,
 .citation-list strong,
 .citation-list span,
 .validation-list strong,
@@ -3183,10 +3230,31 @@ textarea {
 .provider-list small,
 .task-profile-list span,
 .task-profile-list small,
+.marketplace-list span,
+.marketplace-list small,
 .citation-list span,
 .validation-list span {
   margin-top: 3px;
   color: #66707b;
+}
+
+.marketplace-list a {
+  color: #2870b8;
+  font-size: 12px;
+}
+
+.marketplace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.marketplace-actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 .route-detail {
@@ -3197,6 +3265,10 @@ textarea {
   background: #fbfcfd;
   padding: 10px;
   font-size: 13px;
+}
+
+.route-detail.compact {
+  min-height: 58px;
 }
 
 .search-result {
