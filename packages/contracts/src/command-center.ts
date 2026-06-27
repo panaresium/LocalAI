@@ -7,11 +7,13 @@ export type CommandCenterIntent =
   | "automation"
   | "app-adapter"
   | "computer-control"
+  | "media-generation"
   | "knowledge"
   | "unknown";
 
 export type CommandPlanRisk = "low" | "medium" | "high";
 export type CommandPlanStatus = "draft" | "approved" | "rejected";
+export type CommandPlanExecutionStatus = "completed" | "blocked" | "handoff-required";
 export type CommandPlanRoute =
   | "chat"
   | "profile-config"
@@ -19,6 +21,7 @@ export type CommandPlanRoute =
   | "automation"
   | "app-adapters"
   | "computer-control"
+  | "media-generation"
   | "knowledge"
   | "manual-review";
 
@@ -49,6 +52,7 @@ export const COMMAND_CENTER_POLICY: CommandCenterPolicy = {
     "automation",
     "app-adapter",
     "computer-control",
+    "media-generation",
     "knowledge",
     "unknown"
   ],
@@ -113,6 +117,17 @@ export interface CommandPlan {
   readonly steps: readonly CommandPlanStep[];
 }
 
+export interface CommandPlanExecution {
+  readonly id: string;
+  readonly planId: string;
+  readonly status: CommandPlanExecutionStatus;
+  readonly route: CommandPlanRoute;
+  readonly summary: string;
+  readonly detail: string;
+  readonly artifactPath: string | null;
+  readonly createdAt: string;
+}
+
 export interface CreateCommandPlanRequest {
   readonly command: string;
   readonly context?: string;
@@ -124,7 +139,12 @@ export interface ReviewCommandPlanRequest {
   readonly reviewNote?: string;
 }
 
+export interface ExecuteCommandPlanRequest {
+  readonly planId: string;
+}
+
 export interface CommandCenterState {
   readonly policy: CommandCenterPolicy;
   readonly plans: readonly CommandPlan[];
+  readonly executions: readonly CommandPlanExecution[];
 }

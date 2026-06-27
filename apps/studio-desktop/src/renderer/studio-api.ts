@@ -14,6 +14,7 @@ import type {
   ComputerWindowListResult,
   EvaluateKnowledgeRequest,
   ExecuteComputerActionRequest,
+  ExecuteCommandPlanRequest,
   CreateCommandPlanRequest,
   ConfirmElevatedHelperSessionRequest,
   CreateAutomationRequest,
@@ -98,8 +99,10 @@ export interface StudioRendererApi {
   readonly stopService: (serviceId: string) => Promise<ServiceSupervisorSnapshot>;
   readonly shutdown: () => Promise<void>;
   readonly getCommandCenterState: () => Promise<CommandCenterState>;
+  readonly openInstructionWindow: () => Promise<boolean>;
   readonly createCommandPlan: (request: CreateCommandPlanRequest) => Promise<CommandCenterState>;
   readonly reviewCommandPlan: (request: ReviewCommandPlanRequest) => Promise<CommandCenterState>;
+  readonly executeCommandPlan: (request: ExecuteCommandPlanRequest) => Promise<CommandCenterState>;
   readonly getChatState: () => Promise<ChatState>;
   readonly sendChatMessage: (request: SendChatMessageRequest) => Promise<ChatState>;
   readonly cancelChatRun: (runId: string) => Promise<ChatState>;

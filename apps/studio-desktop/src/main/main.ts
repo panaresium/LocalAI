@@ -21,6 +21,7 @@ import type {
   CreateAppAdapterPlanRequest,
   EvaluateKnowledgeRequest,
   ExecuteComputerActionRequest,
+  ExecuteCommandPlanRequest,
   DisableAutomationRequest,
   GetComputerUiTreeRequest,
   GroundBrowserElementRequest,
@@ -116,6 +117,7 @@ const automationManager = new AutomationManager(appRoot);
 const packagingHardeningManager = new PackagingHardeningManager(appRoot);
 
 let mainWindow: BrowserWindow | null = null;
+let instructionWindow: BrowserWindow | null = null;
 let shutdownStarted = false;
 
 function createMainWindow(): BrowserWindow {
@@ -136,6 +138,36 @@ function createMainWindow(): BrowserWindow {
 
   window.removeMenu();
   void window.loadFile(join(currentDir, "..", "renderer", "index.html"));
+  return window;
+}
+
+function createInstructionWindow(): BrowserWindow {
+  if (instructionWindow && !instructionWindow.isDestroyed()) {
+    instructionWindow.focus();
+    return instructionWindow;
+  }
+
+  const window = new BrowserWindow({
+    width: 760,
+    height: 640,
+    minWidth: 620,
+    minHeight: 520,
+    title: "Hermes Instruction",
+    backgroundColor: "#f6f8fa",
+    webPreferences: {
+      preload: join(currentDir, "..", "preload", "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  window.removeMenu();
+  window.on("closed", () => {
+    instructionWindow = null;
+  });
+  instructionWindow = window;
+  void window.loadFile(join(currentDir, "..", "renderer", "index.html"), { hash: "instruction" });
   return window;
 }
 
@@ -162,11 +194,48 @@ function registerIpcHandlers(): void {
     app.quit();
   });
   ipcMain.handle("studio:getCommandCenterState", () => commandCenterManager.getState());
+  ipcMain.handle("studio:openInstructionWindow", () => {
+    createInstructionWindow();
+    return true;
+  });
   ipcMain.handle("studio:createCommandPlan", (_event, request: unknown) => {
     return commandCenterManager.createPlan(parseCreateCommandPlanRequest(request));
   });
   ipcMain.handle("studio:reviewCommandPlan", (_event, request: unknown) => {
     return commandCenterManager.reviewPlan(parseReviewCommandPlanRequest(request));
+  });
+  ipcMain.handle("studio:executeCommandPlan", (_event, request: unknown) => {
+    const plan = commandCenterManager.getApprovedPlan(parseExecuteCommandPlanRequest(request));
+    if (plan.route === "media-generation") {
+      const state = mediaManager.createImageGeneration({
+        mode: "generate",
+        prompt: plan.command
+      });
+      const latest = state.generationResults[0] ?? null;
+      return commandCenterManager.recordExecution(
+        plan,
+        "completed",
+        "Created local image workflow and preview artifact.",
+        latest?.detail ?? "Created local image generation artifacts.",
+        latest?.previewPath ?? null
+      );
+    }
+    if (plan.route === "computer-control" || plan.route === "app-adapters") {
+      return commandCenterManager.recordExecution(
+        plan,
+        "handoff-required",
+        "Prepared approved handoff; active OS actions still require broker-scoped execution.",
+        "Plan approval does not bypass Windows broker schemas, secure desktop, credential, payment, destructive, or elevation safeguards.",
+        null
+      );
+    }
+    return commandCenterManager.recordExecution(
+      plan,
+      "handoff-required",
+      "Prepared approved handoff for the target Studio workspace.",
+      "This route needs workspace-specific parameters before automatic execution can proceed.",
+      null
+    );
   });
   ipcMain.handle("studio:getChatState", async () => chatManager.getState());
   ipcMain.handle("studio:sendChatMessage", async (_event, request: unknown) => {
@@ -544,6 +613,16 @@ function parseReviewCommandPlanRequest(value: unknown): ReviewCommandPlanRequest
     planId: value.planId,
     decision: value.decision,
     ...(value.reviewNote === undefined ? {} : { reviewNote: value.reviewNote })
+  };
+}
+
+function parseExecuteCommandPlanRequest(value: unknown): ExecuteCommandPlanRequest {
+  if (!isRecord(value) || typeof value.planId !== "string") {
+    throw new Error("Invalid command plan execution request.");
+  }
+
+  return {
+    planId: value.planId
   };
 }
 

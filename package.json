@@ -107,7 +107,9 @@
     "test:studio-header-context": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-studio-header-context.ps1",
     "test:post-milestone-ux36": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux36.ps1",
     "test:model-orchestration-confidence": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-orchestration-confidence.ps1",
-    "test:post-milestone-ux37": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux37.ps1"
+    "test:post-milestone-ux37": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux37.ps1",
+    "test:instruction-window-execution": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-instruction-window-execution.ps1",
+    "test:post-milestone-ux38": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux38.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

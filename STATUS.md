@@ -1,6 +1,67 @@
 # STATUS
 
-Last updated: 2026-06-27 10:30 Asia/Bangkok
+Last updated: 2026-06-27 12:15 Asia/Bangkok
+
+## Post-Milestone UX Pass 38 - Instruction Window Execution
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 12:15 Asia/Bangkok.
+
+## Instruction Window Execution Completed
+
+- Added a separate `Hermes Instruction` Electron window loaded through the isolated preload.
+- Added a main Studio `Instruction` button to open or focus the instruction window.
+- The instruction window lets the user enter a plain-language instruction, create a plan, review confidence and model orchestration, approve, and run.
+- Approval now calls the approved-plan runner automatically.
+- Added command execution records for completed, blocked, and handoff-required outcomes.
+- Added `media-generation` as a Command Center intent and route.
+- Image, illustration, picture, artwork, logo, icon, mockup, draw, and sketch requests now route to Creation and Media.
+- Approved image plans automatically create a local image workflow and deterministic preview artifact through the existing Media Manager.
+- Active OS and app-control routes record `handoff-required` instead of bypassing Windows broker, UAC, credential, payment, destructive-action, or secure-desktop safeguards.
+- Added renderer execution history for instruction-window runs.
+- Added `scripts\test-instruction-window-execution.ps1`.
+- Added `scripts\run-post-milestone-ux38.ps1`.
+- Added post-milestone UX instruction window execution tests.
+
+## Instruction Window Execution Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused instruction-window execution validation passes.
+- Full post-milestone UX node regression passes with 159 tests.
+- Separate instruction window keeps `contextIsolation: true`, `nodeIntegration: false`, and `sandbox: true`.
+- Preload exposes only narrow IPC wrappers and no shell, `require`, or `process` access.
+- Approved media-generation execution creates local artifacts only and makes no external generation call.
+- OS-level execution remains broker-gated and cannot silently elevate or perform direct OS actions.
+
+## Instruction Window Execution Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux38.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: instruction-window execution validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux38/run-summary.json`
+- `artifacts/post-milestone-ux38/instruction-window-execution.json`
+- `apps/studio-desktop/src/main/main.ts`
+- `apps/studio-desktop/src/main/command-center-manager.ts`
+- `apps/studio-desktop/src/preload/preload.cts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/studio-api.ts`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `packages/contracts/src/command-center.ts`
+- `tests/post-milestone-ux/instruction-window-execution.test.mjs`
+- `scripts/test-instruction-window-execution.ps1`
+- `scripts/run-post-milestone-ux38.ps1`
 
 ## Post-Milestone UX Pass 37 - Model Orchestration Confidence
 

@@ -1,6 +1,8 @@
 import type {
   CommandCenterIntent,
   CommandCenterPolicy,
+  CommandPlanExecution,
+  CommandPlanExecutionStatus,
   CommandCenterState,
   CommandPlan,
   CommandPlanModelOrchestration,
@@ -8,6 +10,7 @@ import type {
   CommandPlanRoute,
   CommandPlanStep,
   CreateCommandPlanRequest,
+  ExecuteCommandPlanRequest,
   ModelRoleAlias,
   ReviewCommandPlanRequest
 } from "@hermes-local-ai/contracts";
@@ -27,6 +30,7 @@ const COMMAND_CENTER_POLICY: CommandCenterPolicy = {
     "automation",
     "app-adapter",
     "computer-control",
+    "media-generation",
     "knowledge",
     "unknown"
   ],
@@ -59,12 +63,15 @@ const CONFIDENCE_THRESHOLD = 0.9;
 
 export class CommandCenterManager {
   private readonly plans: CommandPlan[] = [];
+  private readonly executions: CommandPlanExecution[] = [];
   private nextPlanId = 1;
+  private nextExecutionId = 1;
 
   public getState(): CommandCenterState {
     return {
       policy: COMMAND_CENTER_POLICY,
-      plans: [...this.plans]
+      plans: [...this.plans],
+      executions: [...this.executions]
     };
   }
 
@@ -121,6 +128,43 @@ export class CommandCenterManager {
     };
     return this.getState();
   }
+
+  public getApprovedPlan(request: ExecuteCommandPlanRequest): CommandPlan {
+    const plan = this.plans.find((candidate) => candidate.id === request.planId);
+    if (!plan) {
+      throw new Error("Unknown command plan.");
+    }
+    if (plan.status !== "approved") {
+      throw new Error("Only approved command plans can be executed.");
+    }
+    if (plan.blockedReasons.length > 0) {
+      throw new Error("Blocked command plans cannot be executed.");
+    }
+    return plan;
+  }
+
+  public recordExecution(
+    plan: CommandPlan,
+    status: CommandPlanExecutionStatus,
+    summary: string,
+    detail: string,
+    artifactPath: string | null
+  ): CommandCenterState {
+    const execution: CommandPlanExecution = {
+      id: `command-execution-${this.nextExecutionId}`,
+      planId: plan.id,
+      status,
+      route: plan.route,
+      summary,
+      detail,
+      artifactPath,
+      createdAt: new Date().toISOString()
+    };
+    this.nextExecutionId += 1;
+    this.executions.unshift(execution);
+    this.executions.splice(20);
+    return this.getState();
+  }
 }
 
 function classifyCommand(value: string): {
@@ -144,6 +188,20 @@ function classifyCommand(value: string): {
       referenceQueries: [
         "Windows set time zone Singapore Standard Time",
         "Windows date and time settings time zone Singapore"
+      ]
+    };
+  }
+  if (/\b(image|illustration|picture|artwork|logo|icon|mockup|generate art|draw|sketch)\b/u.test(text)) {
+    return {
+      intent: "media-generation",
+      title: "Image generation plan",
+      summary: "Create a local image generation workflow and preview artifact with model selection, prompt review, and verification.",
+      risk: "low",
+      route: "media-generation",
+      confidence: 0.93,
+      referenceQueries: [
+        "local image generation prompt safety checklist",
+        "ComfyUI local workflow image generation review"
       ]
     };
   }
@@ -310,6 +368,9 @@ function handoffDetail(intent: CommandCenterIntent): string {
   if (intent === "app-adapter") {
     return "Use App Adapters to create a semantic app plan.";
   }
+  if (intent === "media-generation") {
+    return "Use Creation and Media to create a reviewed local image workflow and preview artifact.";
+  }
   if (intent === "computer-control") {
     return "Use Computer Control observe-first workflow and strict action approval.";
   }
@@ -344,6 +405,9 @@ function modelRolesForRoute(route: CommandPlanRoute): readonly ModelRoleAlias[] 
   }
   if (route === "packaging-hardening") {
     return ["agent.code", "agent.verify", "agent.summarize"];
+  }
+  if (route === "media-generation") {
+    return ["image.generate", "image.verify"];
   }
   if (route === "automation") {
     return ["agent.general", "agent.verify"];

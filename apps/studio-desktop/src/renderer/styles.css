@@ -10,7 +10,7 @@
 
 body {
   margin: 0;
-  min-width: 920px;
+  min-width: 620px;
 }
 
 button,
@@ -66,6 +66,40 @@ textarea {
 
 .studio-shell {
   padding: 22px;
+}
+
+.instruction-shell {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: 22px;
+}
+
+.instruction-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #d8dee4;
+  padding-bottom: 16px;
+}
+
+.instruction-header h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.instruction-header p {
+  margin: 6px 0 0;
+  color: #66707b;
+}
+
+.instruction-panel {
+  margin-top: 16px;
+  border: 1px solid #d8dee4;
+  border-radius: 6px;
+  padding: 16px;
+  background: #ffffff;
 }
 
 .topbar {

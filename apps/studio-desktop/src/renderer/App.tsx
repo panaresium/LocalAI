@@ -743,6 +743,16 @@ function buildCommandComposerRoutePreview(
       confidence: "matched"
     };
   }
+  if (/\b(image|illustration|picture|artwork|logo|icon|mockup|generate art|draw|sketch)\b/u.test(text)) {
+    return {
+      route: "media-generation",
+      workspace: workspaceForCommandRoute("media-generation"),
+      intentLabel: "Image",
+      risk: blockedRisk ?? "low",
+      detail: "Local media generation workflow",
+      confidence: "matched"
+    };
+  }
   if (/\b(app adapter|adapter|open app|office|browser|explorer|powershell|vscode|bambu)\b/u.test(text)) {
     return {
       route: "app-adapters",
@@ -753,7 +763,7 @@ function buildCommandComposerRoutePreview(
       confidence: "matched"
     };
   }
-  if (/\b(click|type|mouse|keyboard|window|screen|computer|ui tree|control)\b/u.test(text)) {
+  if (/\b(click|type|mouse|keyboard|window|screen|computer|ui tree|control|time\s*zone|timezone|date and time|system time|singapore time)\b/u.test(text)) {
     return {
       route: "computer-control",
       workspace: workspaceForCommandRoute("computer-control"),
@@ -1891,6 +1901,9 @@ function workspaceForCommandRoute(route: CommandPlanRoute): WorkspaceId {
   }
   if (route === "automation" || route === "packaging-hardening") {
     return "automation";
+  }
+  if (route === "media-generation") {
+    return "creation";
   }
   if (route === "chat" || route === "profile-config") {
     return "admin";
@@ -3267,18 +3280,34 @@ export function App(): ReactElement {
         decision,
         reviewNote: selectedReviewNote || defaultReviewNote
       });
-      setCommandCenterState(state);
+      let nextState = state;
       const reviewedPlan = state.plans.find((plan) => plan.id === planId) ?? null;
       setSelectedCommandPlanId(planId);
       setCommandReviewNote(reviewedPlan?.reviewNote ?? "");
       if (decision === "approve" && reviewedPlan) {
+        nextState = await window.hermesStudio.executeCommandPlan({ planId });
         const nextWorkspace = workspaceForCommandRoute(reviewedPlan.route);
         setActiveWorkspace(nextWorkspace);
-        setCommandHandoffMessage(`${reviewedPlan.title} opened ${workspaceLabel(nextWorkspace)}.`);
+        const latestExecution = nextState.executions[0] ?? null;
+        setCommandHandoffMessage(latestExecution
+          ? `${latestExecution.summary} ${latestExecution.detail}`
+          : `${reviewedPlan.title} opened ${workspaceLabel(nextWorkspace)}.`);
       } else {
         setCommandHandoffMessage(null);
       }
-      setCommandMessage(`${decision === "approve" ? "Approved" : "Rejected"} command plan ${planId}.`);
+      setCommandCenterState(nextState);
+      setCommandMessage(`${decision === "approve" ? "Approved and executed" : "Rejected"} command plan ${planId}.`);
+    } catch (commandError) {
+      setCommandMessage(commandError instanceof Error ? commandError.message : String(commandError));
+    }
+  }
+
+  async function executeCommandPlan(planId: string): Promise<void> {
+    try {
+      const state = await window.hermesStudio.executeCommandPlan({ planId });
+      setCommandCenterState(state);
+      const execution = state.executions[0] ?? null;
+      setCommandMessage(execution ? `${execution.status}: ${execution.summary}` : `Executed command plan ${planId}.`);
     } catch (commandError) {
       setCommandMessage(commandError instanceof Error ? commandError.message : String(commandError));
     }
@@ -3457,6 +3486,7 @@ export function App(): ReactElement {
   ].slice(0, 10);
   const latestRestorePlan = packagingState?.restorePlans[0] ?? null;
   const recentCommandPlans = (commandCenterState?.plans ?? []).slice(0, 4);
+  const recentCommandExecutions = (commandCenterState?.executions ?? []).slice(0, 4);
   const filteredCommandPlans = recentCommandPlans.filter((plan) => commandPlanMatchesFilter(plan, commandPlanFilter));
   const commandQueueOverview = buildCommandQueueOverview(recentCommandPlans);
   const commandReviewQueueSummary = buildCommandReviewQueueSummary(recentCommandPlans);
@@ -3578,6 +3608,147 @@ export function App(): ReactElement {
     services: (snapshot?.services.length ?? 0) + recentLogs.length
   };
   const workspaceHeaderSummary = buildWorkspaceHeaderSummary(activeWorkspace, workspaceBadges);
+  const isInstructionWindow = window.location.hash === "#instruction";
+
+  if (isInstructionWindow) {
+    return (
+      <main className="instruction-shell">
+        <header className="instruction-header">
+          <div>
+            <h1>Hermes Instruction</h1>
+            <p>Plan, approve, and run safe Studio tasks.</p>
+          </div>
+          <button type="button" onClick={() => void refresh()}>
+            Refresh
+          </button>
+        </header>
+
+        {error ? <section className="alert">{error}</section> : null}
+
+        <section className="instruction-panel">
+          <div className="panel-heading">
+            <h2>User Instruction</h2>
+            <span>{commandCharsRemaining}</span>
+          </div>
+          <label className="text-field">
+            <span>Instruction</span>
+            <textarea
+              rows={7}
+              maxLength={commandLengthLimit}
+              value={commandText}
+              onChange={(event) => setCommandText(event.target.value)}
+            />
+          </label>
+          <div className={`command-next-step ${commandNextStep.tone}`} aria-label="Instruction next step">
+            <strong>{commandNextStep.label}</strong>
+            <span>{commandNextStep.detail}</span>
+            <small>{commandNextStep.action}</small>
+          </div>
+          <div className="admin-actions">
+            <button type="button" disabled={!commandComposerBrief.canPlan || commandIsTooLong} onClick={() => void createCommandPlan()}>
+              Create Plan
+            </button>
+          </div>
+          {commandMessage ? <p className="admin-message">{commandMessage}</p> : null}
+          {commandHandoffMessage ? <p className="admin-message">{commandHandoffMessage}</p> : null}
+        </section>
+
+        <section className="instruction-panel">
+          <div className="panel-heading">
+            <h2>Approval Plan</h2>
+            <span>{selectedCommandPlan?.status ?? "none"}</span>
+          </div>
+          {selectedCommandPlan ? (
+            <>
+              <strong className="command-review-title">{selectedCommandPlan.title}</strong>
+              <p>{selectedCommandPlan.summary}</p>
+              <div
+                className={`command-orchestration ${selectedCommandPlan.referencesRequired ? "blocked" : "ready"}`}
+                aria-label="Instruction model orchestration"
+              >
+                <div>
+                  <span>Route</span>
+                  <strong>{selectedCommandPlan.route}</strong>
+                </div>
+                <div>
+                  <span>Confidence</span>
+                  <strong>{Math.round(selectedCommandPlan.confidence * 100)}% / {Math.round(selectedCommandPlan.confidenceThreshold * 100)}%</strong>
+                </div>
+                <div>
+                  <span>Orchestrator</span>
+                  <strong>{selectedCommandPlan.modelOrchestration.orchestratorRole}</strong>
+                </div>
+                <div>
+                  <span>Specialists</span>
+                  <strong>{selectedCommandPlan.modelOrchestration.specialistRoles.join(", ")}</strong>
+                </div>
+                <small>{selectedCommandPlan.modelOrchestration.memoryPlan}</small>
+              </div>
+              <ol className="command-step-list">
+                {selectedCommandPlan.steps.map((step) => (
+                  <li key={step.id}>
+                    <strong>{step.title}</strong>
+                    <span>{step.detail}</span>
+                    <small>{step.route} · {step.requiresApproval ? "approval required" : "ready"}</small>
+                  </li>
+                ))}
+              </ol>
+              {selectedCommandPlan.blockedReasons.length > 0 ? (
+                <div className="command-blocked-reasons">
+                  {selectedCommandPlan.blockedReasons.map((reason) => (
+                    <span key={reason}>{reason}</span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="admin-actions">
+                <button
+                  type="button"
+                  disabled={selectedCommandPlan.status !== "draft" || selectedCommandPlan.blockedReasons.length > 0}
+                  onClick={() => void reviewCommandPlan(selectedCommandPlan.id, "approve")}
+                >
+                  Approve And Run
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedCommandPlan.status !== "draft"}
+                  onClick={() => void reviewCommandPlan(selectedCommandPlan.id, "reject")}
+                >
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedCommandPlan.status !== "approved"}
+                  onClick={() => void executeCommandPlan(selectedCommandPlan.id)}
+                >
+                  Run Again
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="muted">Create a plan from the instruction first.</p>
+          )}
+        </section>
+
+        <section className="instruction-panel">
+          <div className="panel-heading">
+            <h2>Execution</h2>
+            <span>{recentCommandExecutions.length}</span>
+          </div>
+          <ol className="validation-list">
+            {recentCommandExecutions.map((execution) => (
+              <li key={execution.id}>
+                <strong>{execution.status} · {execution.route}</strong>
+                <span>{execution.summary}</span>
+                <span>{execution.detail}</span>
+                {execution.artifactPath ? <small>{execution.artifactPath}</small> : null}
+              </li>
+            ))}
+          </ol>
+          {recentCommandExecutions.length === 0 ? <p className="muted">No execution yet.</p> : null}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className={`studio-shell workspace-${activeWorkspace}`}>
@@ -3592,6 +3763,9 @@ export function App(): ReactElement {
         </div>
         <div className="topbar-actions">
           <span className={`status-dot ${refreshState}`} aria-label={refreshState} />
+          <button type="button" onClick={() => void window.hermesStudio.openInstructionWindow()}>
+            Instruction
+          </button>
           <button type="button" onClick={() => void refresh()}>
             Refresh
           </button>
