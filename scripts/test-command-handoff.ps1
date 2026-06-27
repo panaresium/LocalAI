@@ -32,7 +32,8 @@ check(appSource.includes("CommandPlanRoute"), "Renderer must use typed command p
 check(appSource.includes("function workspaceForCommandRoute(route: CommandPlanRoute): WorkspaceId"), "Renderer must map routes to workspaces.");
 check(appSource.includes('route === "computer-control" || route === "app-adapters"'), "Control routes must map together.");
 check(appSource.includes('route === "automation" || route === "packaging-hardening"'), "Automation and packaging routes must map together.");
-check(appSource.includes('route === "chat" || route === "profile-config"'), "Chat and profile routes must map to Admin.");
+check(appSource.includes('if (route === "chat")') && appSource.includes('return "chat";'), "Chat routes must map to the Chat workspace.");
+check(appSource.includes('if (route === "profile-config")') && appSource.includes('return "admin";'), "Profile routes must map to Admin.");
 check(appSource.includes("setCommandHandoffMessage"), "Renderer must track command handoff status.");
 check(appSource.includes("workspaceForCommandRoute(reviewedPlan.route)"), "Approval flow must resolve a target workspace.");
 check(appSource.includes("setActiveWorkspace(nextWorkspace)"), "Approval flow must open the target workspace.");
@@ -49,7 +50,8 @@ const result = {
   mappedRoutes: {
     control: ["computer-control", "app-adapters"],
     automation: ["automation", "packaging-hardening"],
-    admin: ["chat", "profile-config"],
+    chat: ["chat"],
+    admin: ["profile-config"],
     knowledge: ["knowledge"],
     command: ["manual-review"]
   },

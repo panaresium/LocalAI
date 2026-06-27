@@ -1,6 +1,60 @@
 # STATUS
 
-Last updated: 2026-06-27 12:15 Asia/Bangkok
+Last updated: 2026-06-27 12:38 Asia/Bangkok
+
+## Post-Milestone UX Pass 39 - Simple Chat Workspace
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 12:38 Asia/Bangkok.
+
+## Simple Chat Workspace Completed
+
+- Added `Chat` as a first-class Studio workspace separate from Admin.
+- Command plans with the `chat` route now open the Chat workspace; profile configuration still opens Admin.
+- Removed Chat from the Admin workspace visibility path.
+- Hid the global model/session/approval summary strip while Chat is active.
+- Simplified the Chat page to a single centered transcript and one message composer.
+- Removed visible chat profile, session, attachment, and tool timeline controls from the Chat workspace.
+- Kept message sending routed through the existing isolated preload IPC path.
+- Updated command handoff validation to treat Chat and profile configuration as separate destinations.
+- Added `scripts\test-simple-chat-workspace.ps1`.
+- Added `scripts\run-post-milestone-ux39.ps1`.
+- Added post-milestone UX simple chat workspace tests.
+
+## Simple Chat Workspace Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused simple chat workspace validation passes.
+- Full post-milestone UX node regression passes with 164 tests.
+- Chat workspace contains no visible profile, session, attachment picker, or tool timeline controls.
+- Admin workspace now remains focused on profiles, models, projects, and local configuration.
+
+## Simple Chat Workspace Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux39.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: simple chat workspace validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux39/run-summary.json`
+- `artifacts/post-milestone-ux39/simple-chat-workspace.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/simple-chat-workspace.test.mjs`
+- `tests/post-milestone-ux/command-handoff.test.mjs`
+- `scripts/test-simple-chat-workspace.ps1`
+- `scripts/run-post-milestone-ux39.ps1`
+- `scripts/test-command-handoff.ps1`
 
 ## Post-Milestone UX Pass 38 - Instruction Window Execution
 

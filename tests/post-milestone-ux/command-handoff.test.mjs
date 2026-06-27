@@ -8,7 +8,8 @@ test("Command Center approval maps typed routes to workspaces", () => {
   assert.match(rendererSource, /function workspaceForCommandRoute\(route: CommandPlanRoute\): WorkspaceId/);
   assert.match(rendererSource, /route === "computer-control" \|\| route === "app-adapters"/);
   assert.match(rendererSource, /route === "automation" \|\| route === "packaging-hardening"/);
-  assert.match(rendererSource, /route === "chat" \|\| route === "profile-config"/);
+  assert.match(rendererSource, /if \(route === "chat"\) \{\s*return "chat";\s*\}/);
+  assert.match(rendererSource, /if \(route === "profile-config"\) \{\s*return "admin";\s*\}/);
   assert.match(rendererSource, /route === "knowledge"/);
   assert.match(rendererSource, /return "command"/);
 });

@@ -10,11 +10,9 @@ import type {
   AutomationTriggerKind,
   BrowserEngine,
   BrowserVisionState,
-  ChatAttachment,
   ChatEvent,
   ChatMessage,
   ChatState,
-  ChatTimelineEntry,
   CommandCenterState,
   CommandPlan,
   CommandPlanRoute,
@@ -154,7 +152,7 @@ type AutomationDraft = {
 type PackagingDraft = {
   readonly restoreExportPath: string;
 };
-type WorkspaceId = "command" | "control" | "knowledge" | "creation" | "automation" | "admin" | "services";
+type WorkspaceId = "chat" | "command" | "control" | "knowledge" | "creation" | "automation" | "admin" | "services";
 type WorkspaceTab = {
   readonly id: WorkspaceId;
   readonly label: string;
@@ -392,6 +390,7 @@ type CommandReviewTimelineItem = {
 };
 
 const WORKSPACES: readonly WorkspaceTab[] = [
+  { id: "chat", label: "Chat" },
   { id: "command", label: "Command" },
   { id: "control", label: "Control" },
   { id: "knowledge", label: "Knowledge" },
@@ -402,12 +401,13 @@ const WORKSPACES: readonly WorkspaceTab[] = [
 ];
 
 const WORKSPACE_HEADER_DETAILS: Record<WorkspaceId, string> = {
+  chat: "Simple conversation with Hermes.",
   command: "Command-first planning with explicit approval.",
   control: "Observe, propose, approve, and verify computer actions.",
   knowledge: "Local knowledge, memory, and learning queues.",
   creation: "Voice, media, and teach-mode creation tools.",
   automation: "Dry-run automations, packaging, and restore planning.",
-  admin: "Profiles, models, chat sessions, and local configuration.",
+  admin: "Profiles, models, projects, and local configuration.",
   services: "Local service health, logs, and supervisor state."
 };
 
@@ -452,7 +452,7 @@ const COMMAND_PRESETS: readonly CommandPreset[] = [
     id: "chat",
     label: "Chat",
     command: "Draft a concise local project status answer",
-    workspace: "admin"
+    workspace: "chat"
   }
 ];
 
@@ -1905,7 +1905,10 @@ function workspaceForCommandRoute(route: CommandPlanRoute): WorkspaceId {
   if (route === "media-generation") {
     return "creation";
   }
-  if (route === "chat" || route === "profile-config") {
+  if (route === "chat") {
+    return "chat";
+  }
+  if (route === "profile-config") {
     return "admin";
   }
   return "command";
@@ -1971,10 +1974,6 @@ function healthClass(service: ServiceStatus): string {
 
 function sortLogs(logs: readonly ServiceLogEntry[]): readonly ServiceLogEntry[] {
   return [...logs].sort((a, b) => b.id - a.id).slice(0, 6);
-}
-
-function sortTimeline(timeline: readonly ChatTimelineEntry[]): readonly ChatTimelineEntry[] {
-  return [...timeline].sort((a, b) => b.id - a.id).slice(0, 8);
 }
 
 function pendingAssistantId(runId: string): string {
@@ -2074,10 +2073,8 @@ export function App(): ReactElement {
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [projectDraft, setProjectDraft] = useState<ProjectDraft | null>(null);
   const [configDraft, setConfigDraft] = useState<string | null>(null);
-  const [selectedProfileId, setSelectedProfileId] = useState("default");
   const [selectedAdminProfileId, setSelectedAdminProfileId] = useState("default");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<readonly string[]>([]);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [fabricMessage, setFabricMessage] = useState<string | null>(null);
   const [selectedModelRole, setSelectedModelRole] = useState<ModelRoleAlias>("orchestrator.primary");
@@ -2207,6 +2204,7 @@ export function App(): ReactElement {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("command");
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const activeProfileId = profileConfigState?.activeProfileId ?? "default";
 
   async function refresh(): Promise<void> {
     setRefreshState("refreshing");
@@ -2284,13 +2282,12 @@ export function App(): ReactElement {
 
     const nextState = await window.hermesStudio.sendChatMessage({
       prompt,
-      profileId: selectedProfileId,
+      profileId: activeProfileId,
       sessionId: selectedSessionId,
-      attachmentIds: selectedAttachmentIds
+      attachmentIds: []
     });
     setChatState(nextState);
     setDraft("");
-    setSelectedAttachmentIds([]);
   }
 
   async function cancelChat(): Promise<void> {
@@ -2299,19 +2296,6 @@ export function App(): ReactElement {
     }
 
     setChatState(await window.hermesStudio.cancelChatRun(chatState.activeRunId));
-  }
-
-  async function selectAttachments(): Promise<void> {
-    const attachments = await window.hermesStudio.selectChatAttachments();
-    if (attachments.length === 0) {
-      return;
-    }
-
-    setSelectedAttachmentIds((existing) => [
-      ...existing,
-      ...attachments.map((attachment) => attachment.id)
-    ]);
-    setChatState(await window.hermesStudio.getChatState());
   }
 
   async function loadProfile(profileId: string): Promise<void> {
@@ -2472,7 +2456,7 @@ export function App(): ReactElement {
       provenance: {
         sourceKind: "manual",
         sourceId: null,
-        profileId: selectedProfileId,
+        profileId: activeProfileId,
         projectId: selectedKnowledgeBaseId,
         note: memoryCandidateDraft.note
       }
@@ -2499,7 +2483,7 @@ export function App(): ReactElement {
       provenance: {
         sourceKind: "manual",
         sourceId: null,
-        profileId: selectedProfileId,
+        profileId: activeProfileId,
         projectId: selectedKnowledgeBaseId,
         note: skillCandidateDraft.note
       }
@@ -3406,13 +3390,6 @@ export function App(): ReactElement {
   }, [profileConfigState, profileDraft, projectDraft, configDraft]);
 
   const recentLogs = useMemo(() => sortLogs(snapshot?.logs ?? []), [snapshot]);
-  const recentTimeline = useMemo(() => sortTimeline(chatState?.timeline ?? []), [chatState]);
-  const selectedAttachments = useMemo(() => {
-    const attachments = chatState?.attachments ?? [];
-    return selectedAttachmentIds
-      .map((id) => attachments.find((attachment) => attachment.id === id))
-      .filter((attachment): attachment is ChatAttachment => Boolean(attachment));
-  }, [chatState, selectedAttachmentIds]);
   const selectedRoute = useMemo(() => (
     modelFabricState?.routes.find((route) => route.role === selectedModelRole) ?? null
   ), [modelFabricState, selectedModelRole]);
@@ -3599,12 +3576,13 @@ export function App(): ReactElement {
   );
   const isChatRunning = chatState?.runStatus === "running";
   const workspaceBadges: Record<WorkspaceId, number> = {
+    chat: messages.length || (chatState?.sessions.length ?? 0),
     command: recentCommandPlans.length,
     control: computerWindows.length + activeComputerActions.length + pendingBrowserApprovals.length + recentAppAdapterPlans.length,
     knowledge: selectedKnowledgeDocuments.length + pendingMemoryCandidates.length + pendingSkillCandidates.length,
     creation: recentVoiceTranscripts.length + (mediaState?.assets.length ?? 0) + recentTeachReplayPlans.length,
     automation: recentAutomations.length + recentElevatedHelperSessions.length + (packagingState?.restorePlans.length ?? 0),
-    admin: (profileConfigState?.profiles.length ?? 0) + (modelFabricState?.routes.length ?? 0) + (chatState?.sessions.length ?? 0),
+    admin: (profileConfigState?.profiles.length ?? 0) + (modelFabricState?.routes.length ?? 0),
     services: (snapshot?.services.length ?? 0) + recentLogs.length
   };
   const workspaceHeaderSummary = buildWorkspaceHeaderSummary(activeWorkspace, workspaceBadges);
@@ -3774,23 +3752,25 @@ export function App(): ReactElement {
 
       {error ? <section className="alert">{error}</section> : null}
 
-      <section className="summary-grid">
-        <div className="summary-panel">
-          <span className="label">Model Route</span>
-          <strong>{selectedRoute?.selectedModelId ?? "none"}</strong>
-          <small>{selectedModelRole}</small>
-        </div>
-        <div className="summary-panel">
-          <span className="label">Session</span>
-          <strong>{selectedSessionId ?? "new"}</strong>
-          <small>{chatState?.runStatus ?? "idle"}</small>
-        </div>
-        <div className="summary-panel">
-          <span className="label">Approvals</span>
-          <strong>{chatState?.approvals.length ?? 0}</strong>
-          <small>No silent approvals in Studio chat</small>
-        </div>
-      </section>
+      {activeWorkspace !== "chat" ? (
+        <section className="summary-grid">
+          <div className="summary-panel">
+            <span className="label">Model Route</span>
+            <strong>{selectedRoute?.selectedModelId ?? "none"}</strong>
+            <small>{selectedModelRole}</small>
+          </div>
+          <div className="summary-panel">
+            <span className="label">Session</span>
+            <strong>{selectedSessionId ?? "new"}</strong>
+            <small>{chatState?.runStatus ?? "idle"}</small>
+          </div>
+          <div className="summary-panel">
+            <span className="label">Approvals</span>
+            <strong>{chatState?.approvals.length ?? 0}</strong>
+            <small>No silent approvals in Studio chat</small>
+          </div>
+        </section>
+      ) : null}
 
       <nav className="workspace-nav" aria-label="Studio workspace">
         {WORKSPACES.map((workspace) => (
@@ -6477,39 +6457,12 @@ export function App(): ReactElement {
         </section>
       </section>
 
-      <section className="chat-workspace" aria-label="Hermes chat">
-        <section className="chat-panel">
-          <div className="chat-toolbar">
-            <label>
-              <span>Profile</span>
-              <select value={selectedProfileId} onChange={(event) => setSelectedProfileId(event.target.value)}>
-                {(chatState?.profiles ?? []).map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Session</span>
-              <select
-                value={selectedSessionId ?? ""}
-                onChange={(event) => setSelectedSessionId(event.target.value ? event.target.value : null)}
-              >
-                <option value="">New session</option>
-                {(chatState?.sessions ?? []).map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.preview} · {session.lastActive}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="message-list" aria-live="polite">
+      <section className="chat-workspace" aria-label="Simple chat">
+        <section className="chat-panel simple-chat-panel">
+          <div className="message-list simple-message-list" aria-live="polite">
             {messages.length === 0 ? (
               <div className="empty-chat">
-                Start a local Hermes chat. Selected files stay metadata-only unless supported by the current profile.
+                Type what you want Hermes to do.
               </div>
             ) : null}
             {messages.map((message) => (
@@ -6532,29 +6485,16 @@ export function App(): ReactElement {
             ))}
           </div>
 
-          {selectedAttachments.length > 0 ? (
-            <ul className="selected-attachments">
-              {selectedAttachments.map((attachment) => (
-                <li key={attachment.id}>
-                  {attachment.name}
-                  <span>{attachment.kind} · {formatBytes(attachment.sizeBytes)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          <div className="composer">
+          <div className="composer simple-composer" aria-label="Simple chat composer">
             <textarea
               value={draft}
-              rows={4}
-              placeholder="Message Hermes..."
+              rows={3}
+              placeholder="Type what you want..."
               disabled={isChatRunning}
+              aria-label="Chat message"
               onChange={(event) => setDraft(event.target.value)}
             />
             <div className="composer-actions">
-              <button type="button" disabled={isChatRunning} onClick={() => void selectAttachments()}>
-                Attach
-              </button>
               <button type="button" disabled={!isChatRunning} onClick={() => void cancelChat()}>
                 Stop
               </button>
@@ -6564,23 +6504,6 @@ export function App(): ReactElement {
             </div>
           </div>
         </section>
-
-        <aside className="timeline-panel">
-          <div className="panel-heading">
-            <h2>Tool Timeline</h2>
-            <span>{recentTimeline.length}</span>
-          </div>
-          <ol>
-            {recentTimeline.map((entry) => (
-              <li key={entry.id} className={`timeline-${entry.state}`}>
-                <time>{new Date(entry.timestamp).toLocaleTimeString()}</time>
-                <strong>{entry.title}</strong>
-                <span>{entry.detail}</span>
-              </li>
-            ))}
-          </ol>
-          {recentTimeline.length === 0 ? <p className="muted">No chat activity yet.</p> : null}
-        </aside>
       </section>
 
       <section className="admin-workspace" aria-label="Profiles projects and config">
