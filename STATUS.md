@@ -1,6 +1,58 @@
 # STATUS
 
-Last updated: 2026-06-27 16:14 Asia/Bangkok
+Last updated: 2026-06-27 16:25 Asia/Bangkok
+
+## Post-Milestone UX Pass 43 - Chat Command Plan Cue
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 16:25 Asia/Bangkok.
+
+## Chat Command Plan Cue Completed
+
+- Added a local, deterministic command-plan cue to the Chat side panel.
+- Chat now recognizes actionable typed drafts such as computer-control, image-generation, knowledge, automation, app-adapter, backup, and packaging tasks.
+- Added a compact `Prepare Plan` action that creates a draft Command Center plan from Chat.
+- The Chat cue opens Command Center for review and approval after creating the draft plan.
+- The cue does not approve or execute plans.
+- Blocked command terms disable plan preparation until the user revises the draft.
+- Chat remains input-first: no profile, session, attachment, or configuration controls were added to the composer.
+- Added `scripts\test-chat-command-plan-cue.ps1`.
+- Added `scripts\run-post-milestone-ux43.ps1`.
+- Added post-milestone UX chat command-plan cue tests.
+
+## Chat Command Plan Cue Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat command-plan cue validation passes.
+- Full post-milestone UX node regression passes with 181 tests.
+- The cue uses existing Command Center planning IPC instead of a second planning path.
+- The cue creates only a draft plan, then moves the user to approval review.
+- No silent execution, approval bypass, shell access, or new OS privilege path was added.
+
+## Chat Command Plan Cue Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux43.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat command-plan cue validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux43/run-summary.json`
+- `artifacts/post-milestone-ux43/chat-command-plan-cue.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-command-plan-cue.test.mjs`
+- `scripts/test-chat-command-plan-cue.ps1`
+- `scripts/run-post-milestone-ux43.ps1`
 
 ## Post-Milestone UX Pass 42 - Adaptive Chat Max Turns
 

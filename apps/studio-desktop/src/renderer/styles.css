@@ -434,6 +434,48 @@ textarea {
   text-align: center;
 }
 
+.chat-plan-cue {
+  margin-top: 10px;
+  border-left: 3px solid #2870b8;
+  background: #f7fbff;
+  padding: 8px 10px;
+}
+
+.chat-plan-cue.risk-medium {
+  border-left-color: #a26200;
+  background: #fffaf0;
+}
+
+.chat-plan-cue.risk-high {
+  border-left-color: #b42318;
+  background: #fff5f5;
+}
+
+.chat-plan-cue div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #223041;
+  font-size: 12px;
+}
+
+.chat-plan-cue span,
+.chat-plan-cue small {
+  color: #66707b;
+}
+
+.chat-plan-cue p {
+  margin: 6px 0;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.chat-plan-cue button {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 34px;
+}
+
 .thinking-diagram {
   display: block;
   width: 100%;

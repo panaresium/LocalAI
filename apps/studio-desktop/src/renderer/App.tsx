@@ -294,6 +294,17 @@ type CommandComposerRoutePreview = {
   readonly detail: string;
   readonly confidence: CommandComposerRouteConfidence;
 };
+type ChatCommandPlanCue = {
+  readonly command: string;
+  readonly route: CommandPlanRoute;
+  readonly workspace: WorkspaceId;
+  readonly workspaceLabel: string;
+  readonly intentLabel: string;
+  readonly detail: string;
+  readonly risk: CommandPlan["risk"];
+  readonly blockedTerms: readonly string[];
+  readonly canPrepare: boolean;
+};
 type CommandIntentCheckState = "pass" | "hint" | "blocked";
 type CommandIntentCheck = {
   readonly id: "intent" | "target" | "approval" | "safety";
@@ -792,6 +803,35 @@ function buildCommandComposerRoutePreview(
     risk: blockedRisk ?? "low",
     detail: "Clarify target before handoff",
     confidence: "manual"
+  };
+}
+
+function buildChatCommandPlanCue(
+  command: string,
+  policy: CommandCenterState["policy"] | null
+): ChatCommandPlanCue | null {
+  const trimmedCommand = command.trim();
+  if (!trimmedCommand) {
+    return null;
+  }
+
+  const blockedTerms = (policy?.blockedTerms ?? []).filter((term) => commandContainsBlockedTerm(trimmedCommand, term));
+  const routePreview = buildCommandComposerRoutePreview(trimmedCommand, blockedTerms);
+  if (routePreview.confidence !== "matched" || routePreview.route === "chat") {
+    return null;
+  }
+
+  const maxChars = policy?.maxCommandChars ?? 600;
+  return {
+    command: trimmedCommand,
+    route: routePreview.route,
+    workspace: routePreview.workspace,
+    workspaceLabel: workspaceLabel(routePreview.workspace),
+    intentLabel: routePreview.intentLabel,
+    detail: routePreview.detail,
+    risk: routePreview.risk,
+    blockedTerms,
+    canPrepare: trimmedCommand.length <= maxChars && blockedTerms.length === 0
   };
 }
 
@@ -3343,6 +3383,25 @@ export function App(): ReactElement {
     }
   }
 
+  async function prepareChatCommandPlan(command: string): Promise<void> {
+    try {
+      setCommandText(command);
+      const state = await window.hermesStudio.createCommandPlan({
+        command,
+        context: selectedRoute ? `Prepared from Chat. Active model route: ${selectedRoute.role}` : "Prepared from Chat"
+      });
+      setCommandCenterState(state);
+      const plan = state.plans[0];
+      setSelectedCommandPlanId(plan?.id ?? null);
+      setCommandReviewNote("");
+      setCommandHandoffMessage(null);
+      setCommandMessage(plan ? `${plan.title}: ${plan.summary}` : "Created command plan from Chat.");
+      setActiveWorkspace("command");
+    } catch (commandError) {
+      setCommandMessage(commandError instanceof Error ? commandError.message : String(commandError));
+    }
+  }
+
   async function reviewCommandPlan(planId: string, decision: "approve" | "reject"): Promise<void> {
     try {
       const defaultReviewNote = decision === "approve" ? "Approved from Command Center." : "Rejected from Command Center.";
@@ -3681,6 +3740,7 @@ export function App(): ReactElement {
     blockedCommandTerms,
     commandPolicy?.requiresApproval ?? true
   );
+  const chatCommandPlanCue = buildChatCommandPlanCue(draft, commandPolicy);
   const isChatRunning = chatState?.runStatus === "running";
   const latestThinkingMessage = useMemo(() => findLatestThinkingMessage(messages), [messages]);
   const latestThinkingTrace: ChatThinkingTrace | null = latestThinkingMessage?.thinkingTrace ?? null;
@@ -6664,6 +6724,25 @@ export function App(): ReactElement {
             <span>{visibleChatMaxTurns === null ? "auto turns" : `${visibleChatMaxTurns} max turns`}</span>
             <span>{formatElapsedMs(liveChatElapsedMs)}</span>
           </div>
+          {chatCommandPlanCue ? (
+            <section className={`chat-plan-cue risk-${chatCommandPlanCue.risk}`} aria-label="Chat command plan cue">
+              <div>
+                <strong>Prepare Plan</strong>
+                <span>{chatCommandPlanCue.intentLabel}</span>
+              </div>
+              <p>{chatCommandPlanCue.detail} · Opens {chatCommandPlanCue.workspaceLabel} for approval.</p>
+              {chatCommandPlanCue.blockedTerms.length > 0 ? (
+                <small>{pluralize(chatCommandPlanCue.blockedTerms.length, "blocked term", "blocked terms")} must be revised first.</small>
+              ) : null}
+              <button
+                type="button"
+                disabled={!chatCommandPlanCue.canPrepare || isChatRunning}
+                onClick={() => void prepareChatCommandPlan(chatCommandPlanCue.command)}
+              >
+                Prepare Plan
+              </button>
+            </section>
+          ) : null}
           <svg className="thinking-diagram" viewBox="0 0 600 120" role="img" aria-label="AI thinking steps diagram">
             {thinkingSidebarSteps.slice(1).map((step, index) => (
               <line
