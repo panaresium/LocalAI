@@ -20,19 +20,19 @@ ollama pull qwen3:0.6b
 ollama pull qwen3:14b
 ```
 
-## Featured under-20B Ollama models
+## Featured June 2026 Ollama models
 
 ```powershell
-ollama pull qwen3:14b
-ollama pull deepseek-r1:14b
-ollama pull phi4:14b
-ollama pull gemma3:12b
-ollama pull qwen2.5-coder:14b
-ollama pull qwen2.5:14b
-ollama pull granite3.3:8b
-ollama pull llama3:8b
-ollama pull qwen3:8b
-ollama pull deepseek-r1:8b
+ollama pull gemma4:31b
+ollama pull qwen3.6:35b
+ollama pull gemma4:26b
+ollama pull qwen3.6:27b
+ollama pull mistral-small3.2:24b
+ollama pull gpt-oss:20b
+ollama pull qwen3-coder-next:latest
+ollama pull gemma4:12b
+ollama pull gemma4:e4b
+ollama pull gemma4:e2b
 ```
 
 ## Local non-Ollama engines

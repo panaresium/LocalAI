@@ -1,6 +1,73 @@
 # STATUS
 
-Last updated: 2026-06-28 00:14 Asia/Bangkok
+Last updated: 2026-06-28 00:31 Asia/Bangkok
+
+## Post-Milestone UX Pass 52 - Latest June 2026 Model Catalog Refresh
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-28 at 00:31 Asia/Bangkok.
+
+## Latest June 2026 Model Catalog Refresh Completed
+
+- Refreshed the ranked Model Fabric marketplace catalog from the prior under-20B set to a latest-capable June 2026 local Ollama set.
+- Kept low-resource baseline and optional models available outside the ranked list.
+- Updated the ranked marketplace models to:
+  - `gemma4:31b`
+  - `qwen3.6:35b`
+  - `gemma4:26b`
+  - `qwen3.6:27b`
+  - `mistral-small3.2:24b`
+  - `gpt-oss:20b`
+  - `qwen3-coder-next:latest`
+  - `gemma4:12b`
+  - `gemma4:e4b`
+  - `gemma4:e2b`
+- Marked the latest ranked models with `latest-june-2026` catalog capability.
+- Updated marketplace display text from `under 20B` to `June 2026`.
+- Updated `ai_model_download_manifest.json` from `featured_under_20b_ollama_models` to `featured_june_2026_ollama_models`.
+- Updated `AI_Model_Downloads.md` with the June 2026 pull commands.
+- Kept Thai ASR/TTS entries source-only because they still require a non-Ollama local runtime adapter.
+- Added `scripts\test-model-marketplace-latest-june2026.ps1`.
+- Added `scripts\run-post-milestone-ux52.ps1`.
+- Updated post-milestone UX catalog tests for the June 2026 ranked set.
+
+## Latest June 2026 Model Catalog Refresh Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused latest June 2026 marketplace validation passes.
+- Full post-milestone UX node regression passes with 218 tests.
+- Manifest JSON parses successfully.
+- Ollama auto-download support remains restricted to local Ollama models.
+- Thai ASR/TTS source-only entries remain protected from automatic Ollama pull calls.
+- No external AI call, credential handling path, automatic non-Ollama runtime install, approval bypass, or hidden background model download was added.
+
+## Latest June 2026 Model Catalog Refresh Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux52.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: latest June 2026 marketplace validation.
+- Passed: post-milestone UX node regression with 218 tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux52/run-summary.json`
+- `artifacts/post-milestone-ux52/model-marketplace-latest-june2026.json`
+- `apps/studio-desktop/src/main/model-fabric-manager.ts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `tests/post-milestone-ux/model-marketplace-speech-catalog.test.mjs`
+- `scripts/test-model-marketplace-latest-june2026.ps1`
+- `scripts/run-post-milestone-ux52.ps1`
+- `ai_model_download_manifest.json`
+- `AI_Model_Downloads.md`
+- `package.json`
 
 ## Post-Milestone UX Pass 51 - Under-20B Catalog and Thai Speech Models
 

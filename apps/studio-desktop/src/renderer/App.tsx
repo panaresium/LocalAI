@@ -6614,7 +6614,7 @@ export function App(): ReactElement {
                   </div>
                   <span>{entry.description}</span>
                   <small>
-                    {entry.marketplaceRank ? `#${entry.marketplaceRank} under 20B · ` : ""}
+                    {entry.marketplaceRank ? `#${entry.marketplaceRank} June 2026 · ` : ""}
                     {entry.parameterCountB ? `${entry.parameterCountB}B · ` : ""}
                     {entry.model} · {entry.lifecycle} · {entry.runtimeKind}
                   </small>

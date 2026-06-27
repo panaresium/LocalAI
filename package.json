@@ -135,7 +135,9 @@
     "test:model-marketplace-download": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-marketplace-download.ps1",
     "test:post-milestone-ux50": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux50.ps1",
     "test:model-marketplace-speech-catalog": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-marketplace-speech-catalog.ps1",
-    "test:post-milestone-ux51": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux51.ps1"
+    "test:post-milestone-ux51": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux51.ps1",
+    "test:model-marketplace-latest-june2026": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-marketplace-latest-june2026.ps1",
+    "test:post-milestone-ux52": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux52.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

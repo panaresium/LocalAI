@@ -53,7 +53,7 @@ test("contracts support local artifact providers, source-only downloads, and voi
   assert.match(contractSource, /readonly downloadSupported: boolean/);
 });
 
-test("marketplace exposes exactly ten ranked sub-20B Ollama models", async () => {
+test("marketplace exposes exactly ten ranked latest June 2026 Ollama models", async () => {
   const { ModelFabricManager } = await import(managerModulePath);
   const manager = new ModelFabricManager({
     ollamaBaseUrl: "http://127.0.0.1:11434",
@@ -65,20 +65,20 @@ test("marketplace exposes exactly ten ranked sub-20B Ollama models", async () =>
   assert.equal(featured.length, 10);
   assert.deepEqual(featured.map((entry) => entry.marketplaceRank), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   assert.deepEqual(featured.map((entry) => entry.model), [
-    "qwen3:14b",
-    "deepseek-r1:14b",
-    "phi4:14b",
-    "gemma3:12b",
-    "qwen2.5-coder:14b",
-    "qwen2.5:14b",
-    "granite3.3:8b",
-    "llama3:8b",
-    "qwen3:8b",
-    "deepseek-r1:8b"
+    "gemma4:31b",
+    "qwen3.6:35b",
+    "gemma4:26b",
+    "qwen3.6:27b",
+    "mistral-small3.2:24b",
+    "gpt-oss:20b",
+    "qwen3-coder-next:latest",
+    "gemma4:12b",
+    "gemma4:e4b",
+    "gemma4:e2b"
   ]);
   assert.equal(featured.every((entry) => entry.runtimeKind === "ollama"), true);
   assert.equal(featured.every((entry) => entry.downloadSupported), true);
-  assert.equal(featured.every((entry) => entry.parameterCountB !== null && entry.parameterCountB < 20), true);
+  assert.equal(featured.every((entry) => entry.capabilities.includes("latest-june-2026")), true);
 });
 
 test("Thai ASR and TTS entries are source-only local runtime models", async () => {
@@ -118,12 +118,14 @@ test("voice task profile and chat classifier route voice prompts to speech roles
 });
 
 test("model docs list the ten featured local models and Thai speech entries", () => {
-  assert.equal(manifest.featured_under_20b_ollama_models.length, 10);
-  assert.equal(manifest.featured_under_20b_ollama_models.every((entry) => entry.model.endsWith(":14b") || entry.model.endsWith(":12b") || entry.model.endsWith(":8b")), true);
+  assert.equal(manifest.featured_june_2026_ollama_models.length, 10);
+  assert.equal(manifest.featured_june_2026_ollama_models[0].model, "gemma4:31b");
+  assert.equal(manifest.featured_june_2026_ollama_models.some((entry) => entry.model === "qwen3-coder-next:latest"), true);
   assert.equal(manifest.thai_voice_models.length, 3);
-  assert.match(modelDocs, /Featured under-20B Ollama models/);
-  assert.match(modelDocs, /ollama pull qwen3:14b/);
-  assert.match(modelDocs, /ollama pull deepseek-r1:8b/);
+  assert.match(modelDocs, /Featured June 2026 Ollama models/);
+  assert.match(modelDocs, /ollama pull gemma4:31b/);
+  assert.match(modelDocs, /ollama pull qwen3\.6:35b/);
+  assert.match(modelDocs, /ollama pull qwen3-coder-next:latest/);
   assert.match(modelDocs, /MMS Thai TTS/);
 });
 
@@ -132,4 +134,8 @@ test("UX51 validation scripts are registered", () => {
   assert.equal(fs.existsSync("scripts/run-post-milestone-ux51.ps1"), true);
   assert.equal(pkg.scripts["test:model-marketplace-speech-catalog"], "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-marketplace-speech-catalog.ps1");
   assert.equal(pkg.scripts["test:post-milestone-ux51"], "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux51.ps1");
+  assert.equal(fs.existsSync("scripts/test-model-marketplace-latest-june2026.ps1"), true);
+  assert.equal(fs.existsSync("scripts/run-post-milestone-ux52.ps1"), true);
+  assert.equal(pkg.scripts["test:model-marketplace-latest-june2026"], "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-model-marketplace-latest-june2026.ps1");
+  assert.equal(pkg.scripts["test:post-milestone-ux52"], "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux52.ps1");
 });

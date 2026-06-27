@@ -49,86 +49,86 @@
       "keep_alive": "2m"
     }
   ],
-  "featured_under_20b_ollama_models": [
+  "featured_june_2026_ollama_models": [
     {
       "rank": 1,
-      "role": "orchestrator.primary / agent.deep",
-      "model": "qwen3:14b",
-      "command": "ollama pull qwen3:14b",
-      "source_url": "https://ollama.com/library/qwen3:14b",
-      "lifecycle": "warm"
+      "role": "orchestrator.primary / agent.deep / vision.document",
+      "model": "gemma4:31b",
+      "command": "ollama pull gemma4:31b",
+      "source_url": "https://ollama.com/library/gemma4:31b",
+      "lifecycle": "exclusive"
     },
     {
       "rank": 2,
-      "role": "agent.deep / agent.verify",
-      "model": "deepseek-r1:14b",
-      "command": "ollama pull deepseek-r1:14b",
-      "source_url": "https://ollama.com/library/deepseek-r1:14b",
-      "lifecycle": "warm"
+      "role": "orchestrator.primary / agent.deep / agent.code",
+      "model": "qwen3.6:35b",
+      "command": "ollama pull qwen3.6:35b",
+      "source_url": "https://ollama.com/library/qwen3.6:35b",
+      "lifecycle": "exclusive"
     },
     {
       "rank": 3,
-      "role": "agent.general / agent.deep",
-      "model": "phi4:14b",
-      "command": "ollama pull phi4:14b",
-      "source_url": "https://ollama.com/library/phi4:14b",
-      "lifecycle": "warm"
+      "role": "agent.general / agent.deep / vision.document",
+      "model": "gemma4:26b",
+      "command": "ollama pull gemma4:26b",
+      "source_url": "https://ollama.com/library/gemma4:26b",
+      "lifecycle": "exclusive"
     },
     {
       "rank": 4,
-      "role": "agent.general / vision.document",
-      "model": "gemma3:12b",
-      "command": "ollama pull gemma3:12b",
-      "source_url": "https://ollama.com/library/gemma3:12b",
-      "lifecycle": "warm"
+      "role": "agent.deep / agent.code",
+      "model": "qwen3.6:27b",
+      "command": "ollama pull qwen3.6:27b",
+      "source_url": "https://ollama.com/library/qwen3.6:27b",
+      "lifecycle": "exclusive"
     },
     {
       "rank": 5,
-      "role": "agent.code",
-      "model": "qwen2.5-coder:14b",
-      "command": "ollama pull qwen2.5-coder:14b",
-      "source_url": "https://ollama.com/library/qwen2.5-coder:14b",
-      "lifecycle": "warm"
+      "role": "agent.general / agent.code / vision.document",
+      "model": "mistral-small3.2:24b",
+      "command": "ollama pull mistral-small3.2:24b",
+      "source_url": "https://ollama.com/library/mistral-small3.2:24b",
+      "lifecycle": "exclusive"
     },
     {
       "rank": 6,
-      "role": "agent.general / translation.quality",
-      "model": "qwen2.5:14b",
-      "command": "ollama pull qwen2.5:14b",
-      "source_url": "https://ollama.com/library/qwen2.5:14b",
+      "role": "agent.general / agent.deep / agent.code",
+      "model": "gpt-oss:20b",
+      "command": "ollama pull gpt-oss:20b",
+      "source_url": "https://ollama.com/library/gpt-oss:20b",
       "lifecycle": "warm"
     },
     {
       "rank": 7,
-      "role": "agent.code / agent.summarize",
-      "model": "granite3.3:8b",
-      "command": "ollama pull granite3.3:8b",
-      "source_url": "https://ollama.com/library/granite3.3:8b",
-      "lifecycle": "on_demand"
+      "role": "agent.code / agent.verify",
+      "model": "qwen3-coder-next:latest",
+      "command": "ollama pull qwen3-coder-next:latest",
+      "source_url": "https://ollama.com/library/qwen3-coder-next",
+      "lifecycle": "exclusive"
     },
     {
       "rank": 8,
-      "role": "agent.general",
-      "model": "llama3:8b",
-      "command": "ollama pull llama3:8b",
-      "source_url": "https://ollama.com/library/llama3:8b",
+      "role": "agent.general / vision.document",
+      "model": "gemma4:12b",
+      "command": "ollama pull gemma4:12b",
+      "source_url": "https://ollama.com/library/gemma4:12b",
       "lifecycle": "on_demand"
     },
     {
       "rank": 9,
-      "role": "agent.general / agent.deep",
-      "model": "qwen3:8b",
-      "command": "ollama pull qwen3:8b",
-      "source_url": "https://ollama.com/library/qwen3:8b",
-      "lifecycle": "on_demand"
+      "role": "controller.fast / agent.general / vision.general",
+      "model": "gemma4:e4b",
+      "command": "ollama pull gemma4:e4b",
+      "source_url": "https://ollama.com/library/gemma4:e4b",
+      "lifecycle": "pinned"
     },
     {
       "rank": 10,
-      "role": "agent.deep / agent.verify",
-      "model": "deepseek-r1:8b",
-      "command": "ollama pull deepseek-r1:8b",
-      "source_url": "https://ollama.com/library/deepseek-r1:8b",
-      "lifecycle": "on_demand"
+      "role": "controller.fast / agent.general",
+      "model": "gemma4:e2b",
+      "command": "ollama pull gemma4:e2b",
+      "source_url": "https://ollama.com/library/gemma4:e2b",
+      "lifecycle": "pinned"
     }
   ],
   "ollama_models_optional": [
