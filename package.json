@@ -101,7 +101,9 @@
     "test:command-focus-bar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-command-focus-bar.ps1",
     "test:post-milestone-ux33": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux33.ps1",
     "test:command-focus-actions": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-command-focus-actions.ps1",
-    "test:post-milestone-ux34": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux34.ps1"
+    "test:post-milestone-ux34": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux34.ps1",
+    "test:command-review-timeline": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-command-review-timeline.ps1",
+    "test:post-milestone-ux35": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux35.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

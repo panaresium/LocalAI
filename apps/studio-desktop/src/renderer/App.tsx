@@ -378,6 +378,13 @@ type CommandFocusAction = {
   readonly disabled: boolean;
   readonly guard: string;
 };
+type CommandReviewTimelineTone = "done" | "current" | "blocked" | "waiting";
+type CommandReviewTimelineItem = {
+  readonly id: "draft" | "approval" | "handoff";
+  readonly label: string;
+  readonly detail: string;
+  readonly tone: CommandReviewTimelineTone;
+};
 
 const WORKSPACES: readonly WorkspaceTab[] = [
   { id: "command", label: "Command" },
@@ -1396,6 +1403,85 @@ function formatCommandTimestamp(value: string): string {
     return value;
   }
   return date.toLocaleString();
+}
+
+function buildCommandReviewTimeline(
+  plan: CommandPlan,
+  policy: CommandCenterState["policy"] | null
+): readonly CommandReviewTimelineItem[] {
+  const hasBlockedReasons = plan.blockedReasons.length > 0;
+  const handoffWorkspace = workspaceLabel(workspaceForCommandRoute(plan.route));
+  const draft: CommandReviewTimelineItem = {
+    id: "draft",
+    label: "Draft ready",
+    detail: `${plan.intent} · ${plan.risk}`,
+    tone: "done"
+  };
+
+  const approval: CommandReviewTimelineItem = plan.status === "approved"
+    ? {
+        id: "approval",
+        label: "Approved",
+        detail: plan.reviewedAt ? formatCommandTimestamp(plan.reviewedAt) : "Approval recorded",
+        tone: "done"
+      }
+    : plan.status === "rejected"
+      ? {
+          id: "approval",
+          label: "Rejected",
+          detail: plan.reviewNote ?? "No approval granted",
+          tone: "blocked"
+        }
+      : hasBlockedReasons
+        ? {
+            id: "approval",
+            label: "Approval blocked",
+            detail: pluralize(plan.blockedReasons.length, "blocked reason", "blocked reasons"),
+            tone: "blocked"
+          }
+        : policy === null
+          ? {
+              id: "approval",
+              label: "Approval unavailable",
+              detail: "Restore approval policy before handoff",
+              tone: "blocked"
+            }
+          : {
+              id: "approval",
+              label: "Awaiting decision",
+              detail: "Approve or reject explicitly",
+              tone: "current"
+            };
+
+  const handoff: CommandReviewTimelineItem = plan.status === "approved"
+    ? {
+        id: "handoff",
+        label: "Ready to open",
+        detail: `Open ${handoffWorkspace}`,
+        tone: "current"
+      }
+    : plan.status === "rejected"
+      ? {
+          id: "handoff",
+          label: "No handoff",
+          detail: "Plan was rejected",
+          tone: "blocked"
+        }
+      : hasBlockedReasons
+        ? {
+            id: "handoff",
+            label: "No handoff",
+            detail: "Resolve blockers first",
+            tone: "blocked"
+          }
+        : {
+            id: "handoff",
+            label: "Locked",
+            detail: `Requires approval before ${handoffWorkspace}`,
+            tone: "waiting"
+          };
+
+  return [draft, approval, handoff];
 }
 
 function buildCommandApprovalTrail(plan: CommandPlan): readonly CommandApprovalTrailItem[] {
@@ -3365,6 +3451,7 @@ export function App(): ReactElement {
   const selectedCommandReviewActions = selectedCommandPlan ? buildCommandReviewActions(selectedCommandPlan) : [];
   const selectedCommandReviewBrief = selectedCommandPlan ? buildCommandReviewBrief(selectedCommandPlan) : null;
   const selectedCommandStepSummary = selectedCommandPlan ? buildCommandStepSummary(selectedCommandPlan) : null;
+  const selectedCommandReviewTimeline = selectedCommandPlan ? buildCommandReviewTimeline(selectedCommandPlan, commandPolicy) : [];
   const selectedCommandApprovalImpact = selectedCommandPlan ? buildCommandApprovalImpact(selectedCommandPlan, commandPolicy) : null;
   const selectedCommandDecisionPrompt = selectedCommandPlan
     ? buildCommandReviewDecisionPrompt(selectedCommandPlan, commandReviewNote, commandPolicy)
@@ -3913,6 +4000,14 @@ export function App(): ReactElement {
                   <small>{selectedCommandStepSummary.detail} · {selectedCommandStepSummary.handoff}</small>
                 </div>
               ) : null}
+              <ol className="command-review-timeline" aria-label="Command review timeline">
+                {selectedCommandReviewTimeline.map((item) => (
+                  <li key={item.id} className={item.tone}>
+                    <strong>{item.label}</strong>
+                    <span>{item.detail}</span>
+                  </li>
+                ))}
+              </ol>
               {selectedCommandApprovalImpact ? (
                 <div
                   className={`command-approval-impact ${selectedCommandApprovalImpact.tone}`}
