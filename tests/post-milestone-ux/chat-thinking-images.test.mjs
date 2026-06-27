@@ -14,6 +14,7 @@ const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 test("Chat contract exposes visible process summaries, metrics, diagrams, and generated images", () => {
   assert.match(contractSource, /export interface ChatRunMetrics/);
   assert.match(contractSource, /readonly tokensPerSecond: number/);
+  assert.match(contractSource, /readonly maxTurns: number/);
   assert.match(contractSource, /export interface ChatThinkingStep/);
   assert.match(contractSource, /export interface ChatThinkingDiagram/);
   assert.match(contractSource, /export interface ChatThinkingTrace/);
@@ -58,6 +59,7 @@ test("Chat manager builds user-visible thinking traces and local generated image
     startedAt: "2026-06-27T05:00:00.000Z",
     startedAtMs: 1000,
     completedAtMs: 3500,
+    maxTurns: 16,
     output: "Generated image preview is attached below.",
     attachments: [],
     generatedImages: [image],
@@ -71,6 +73,7 @@ test("Chat manager builds user-visible thinking traces and local generated image
   assert.equal(trace.diagram.edges.length, trace.steps.length - 1);
   assert.equal(trace.metrics.outputTokens > 0, true);
   assert.equal(trace.metrics.tokensPerSecond > 0, true);
+  assert.equal(trace.metrics.maxTurns, 16);
 });
 
 test("Renderer shows process metrics, step diagram, and generated images inside simple chat", () => {

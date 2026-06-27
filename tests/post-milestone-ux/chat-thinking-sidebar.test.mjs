@@ -44,7 +44,7 @@ test("Chat thinking sidebar derives live speed and step state from the active ru
   assert.match(rendererSource, /window\.setInterval\(\(\) => \{\s*setChatNow\(Date\.now\(\)\);\s*\}, 1000\)/);
   assert.match(rendererSource, /const liveChatTokensPerSecond = isChatRunning/);
   assert.match(rendererSource, /estimateVisibleChatTokens\(pendingAssistantMessage\?\.content \?\? ""\)/);
-  assert.match(rendererSource, /buildLiveThinkingSteps\(liveChatOutputTokens > 0\)/);
+  assert.match(rendererSource, /buildLiveThinkingSteps\(liveChatOutputTokens > 0, activeChatMaxTurns\)/);
 });
 
 test("Chat thinking sidebar has responsive two-column layout and activity styling", () => {

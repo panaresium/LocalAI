@@ -36,6 +36,7 @@ interface ActiveRun {
   readonly child: ChildProcessWithoutNullStreams;
   readonly assistantMessageId: string;
   readonly prompt: string;
+  readonly maxTurns: number;
   readonly startedAt: string;
   readonly startedAtMs: number;
   rawOutput: string;
@@ -58,7 +59,12 @@ interface ParsedHermesOutput {
 
 const DEFAULT_PROVIDER = "custom";
 const DEFAULT_MODEL = "qwen3.5:4b";
-const DEFAULT_MAX_TURNS = 6;
+const DEFAULT_MAX_TURNS = 16;
+const SIMPLE_CHAT_MAX_TURNS = 8;
+const PLANNING_CHAT_MAX_TURNS = 12;
+const COMPLEX_CHAT_MAX_TURNS = 16;
+const EXTENDED_CHAT_MAX_TURNS = 20;
+const HARD_MAX_TURNS = 20;
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_PROMPT_CHARS = 12000;
 const MAX_PROFILE_CHARS = 6000;
@@ -67,6 +73,9 @@ const CHAT_IMAGE_WIDTH = 960;
 const CHAT_IMAGE_HEIGHT = 540;
 const IMAGE_PROMPT_PATTERN = /\b(image|illustration|picture|artwork|logo|icon|mockup|generate art|draw|sketch)\b/iu;
 const IMAGE_PROMPT_SENSITIVE_PATTERN = /\b(password|passcode|mfa|otp|payment|credit\s+card|api\s+key|secret|token|credential)\b/iu;
+const EXTENDED_TASK_PATTERN = /\b(research|internet|browse|web|multi[-\s]?step|end[-\s]?to[-\s]?end|complete\s+the\s+task|troubleshoot|debug|investigate|implement)\b/iu;
+const ARTIFACT_TASK_PATTERN = /\b(diagram|flow|architecture|workflow|process\s+map|bcp|business\s+continuity|document|pdf|report|presentation|illustration|image|mockup)\b/iu;
+const PLANNING_TASK_PATTERN = /\b(plan|steps?|schedule|set\s+(?:the\s+)?(?:date|time)|configure|install|setup|summari[sz]e|analy[sz]e|compare|recommend)\b/iu;
 
 export class HermesChatManager {
   private readonly root: string;
@@ -109,6 +118,7 @@ export class HermesChatManager {
       approvals: [],
       timeline: [...this.timeline],
       activeRunId: this.activeRun?.runId ?? null,
+      activeMaxTurns: this.activeRun?.maxTurns ?? null,
       activeSessionId: this.activeSessionId,
       runStatus: this.runStatus
     };
@@ -158,17 +168,18 @@ export class HermesChatManager {
     const userMessage = this.createMessage("user", prompt, selectedAttachments, request.sessionId ?? undefined);
     const hermesPrompt = await this.buildPromptForHermes(prompt, request.profileId, selectedAttachments);
     const imagePath = selectedAttachments.find((attachment) => attachment.kind === "image")?.path ?? null;
+    const maxTurns = selectChatMaxTurns(prompt, request.maxTurns ?? this.maxTurns);
     const args = buildHermesChatArgs({
       prompt: hermesPrompt,
       provider: this.provider,
       model: this.model,
-      maxTurns: this.maxTurns,
+      maxTurns,
       sessionId: request.sessionId,
       imagePath
     });
 
     this.runStatus = "running";
-    const startedEntry = this.addTimeline(runId, "system", "running", "Hermes chat started", `Local provider ${this.provider}, model ${this.model}.`);
+    const startedEntry = this.addTimeline(runId, "system", "running", "Hermes chat started", `Local provider ${this.provider}, model ${this.model}, max turns ${maxTurns}.`);
     const child = spawn(this.hermesCommand, [...this.hermesArgsPrefix, ...args], {
       cwd: this.root,
       windowsHide: true,
@@ -181,6 +192,7 @@ export class HermesChatManager {
       child,
       assistantMessageId: randomUUID(),
       prompt,
+      maxTurns,
       startedAt,
       startedAtMs,
       rawOutput: "",
@@ -439,6 +451,7 @@ export class HermesChatManager {
       startedAt: activeRun.startedAt,
       startedAtMs: activeRun.startedAtMs,
       completedAtMs,
+      maxTurns: activeRun.maxTurns,
       output: assistantContent,
       attachments,
       generatedImages,
@@ -557,6 +570,35 @@ export function buildHermesChatArgs(input: {
   return args;
 }
 
+export function normalizeChatMaxTurnsLimit(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_MAX_TURNS;
+  }
+  return Math.max(1, Math.min(HARD_MAX_TURNS, Math.trunc(value)));
+}
+
+export function selectChatMaxTurns(prompt: string, configuredLimit = DEFAULT_MAX_TURNS): number {
+  const limit = normalizeChatMaxTurnsLimit(configuredLimit);
+  const trimmedPrompt = prompt.trim();
+  let target = SIMPLE_CHAT_MAX_TURNS;
+
+  if (EXTENDED_TASK_PATTERN.test(trimmedPrompt)) {
+    target = EXTENDED_CHAT_MAX_TURNS;
+  } else if (ARTIFACT_TASK_PATTERN.test(trimmedPrompt) || IMAGE_PROMPT_PATTERN.test(trimmedPrompt)) {
+    target = COMPLEX_CHAT_MAX_TURNS;
+  } else if (PLANNING_TASK_PATTERN.test(trimmedPrompt)) {
+    target = PLANNING_CHAT_MAX_TURNS;
+  }
+
+  if (trimmedPrompt.length > 8000) {
+    target = Math.max(target, EXTENDED_CHAT_MAX_TURNS);
+  } else if (trimmedPrompt.length > 4000) {
+    target = Math.max(target, COMPLEX_CHAT_MAX_TURNS);
+  }
+
+  return Math.min(target, limit);
+}
+
 export function parseHermesChatOutput(output: string): ParsedHermesOutput {
   const lines = output.replace(/\r\n/g, "\n").split("\n");
   let sessionId: string | null = null;
@@ -606,6 +648,7 @@ interface BuildChatThinkingTraceInput {
   readonly startedAt: string;
   readonly startedAtMs: number;
   readonly completedAtMs: number;
+  readonly maxTurns: number;
   readonly output: string;
   readonly attachments: readonly ChatAttachment[];
   readonly generatedImages: readonly ChatGeneratedImage[];
@@ -636,7 +679,7 @@ export function buildChatThinkingTrace(input: BuildChatThinkingTraceInput): Chat
     {
       id: "route",
       label: "Route",
-      detail: `Selected provider ${input.provider} with model ${input.model}.`,
+      detail: `Selected provider ${input.provider} with model ${input.model} and ${input.maxTurns} max turns.`,
       state: "completed" as const
     },
     {
@@ -654,7 +697,7 @@ export function buildChatThinkingTrace(input: BuildChatThinkingTraceInput): Chat
     {
       id: "verify",
       label: "Verify",
-      detail: `Estimated ${outputTokens} output token(s) at ${tokensPerSecond} token/s.`,
+      detail: `Estimated ${outputTokens} output token(s) at ${tokensPerSecond} token/s within ${input.maxTurns} max turns.`,
       state: "completed" as const
     }
   ];
@@ -679,7 +722,8 @@ export function buildChatThinkingTrace(input: BuildChatThinkingTraceInput): Chat
       completedAt,
       elapsedMs,
       outputTokens,
-      tokensPerSecond
+      tokensPerSecond,
+      maxTurns: input.maxTurns
     }
   };
 }

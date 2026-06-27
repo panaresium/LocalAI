@@ -33,6 +33,7 @@ export interface ChatRunMetrics {
   readonly elapsedMs: number;
   readonly outputTokens: number;
   readonly tokensPerSecond: number;
+  readonly maxTurns: number;
 }
 
 export interface ChatThinkingStep {
@@ -115,6 +116,7 @@ export interface ChatState {
   readonly approvals: readonly ChatApprovalRequest[];
   readonly timeline: readonly ChatTimelineEntry[];
   readonly activeRunId: string | null;
+  readonly activeMaxTurns: number | null;
   readonly activeSessionId: string | null;
   readonly runStatus: ChatRunStatus;
 }
@@ -124,6 +126,7 @@ export interface SendChatMessageRequest {
   readonly profileId: string;
   readonly sessionId: string | null;
   readonly attachmentIds: readonly string[];
+  readonly maxTurns?: number;
 }
 
 export interface ChatRunStartedEvent {

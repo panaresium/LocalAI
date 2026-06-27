@@ -567,6 +567,7 @@ function parseSendChatMessageRequest(value: unknown): SendChatMessageRequest {
   const profileId = value.profileId;
   const sessionId = value.sessionId;
   const attachmentIds = value.attachmentIds;
+  const maxTurns = value.maxTurns;
   if (typeof prompt !== "string" || typeof profileId !== "string") {
     throw new Error("Invalid chat request.");
   }
@@ -576,13 +577,17 @@ function parseSendChatMessageRequest(value: unknown): SendChatMessageRequest {
   if (!Array.isArray(attachmentIds) || !attachmentIds.every((id) => typeof id === "string")) {
     throw new Error("Invalid chat attachments.");
   }
+  if (maxTurns !== undefined && (typeof maxTurns !== "number" || !Number.isInteger(maxTurns) || maxTurns < 1 || maxTurns > 20)) {
+    throw new Error("Invalid chat max turns.");
+  }
 
-  return {
+  const request: SendChatMessageRequest = {
     prompt,
     profileId,
     sessionId,
     attachmentIds
   };
+  return maxTurns === undefined ? request : { ...request, maxTurns };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

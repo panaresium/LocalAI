@@ -1,6 +1,68 @@
 # STATUS
 
-Last updated: 2026-06-27 13:17 Asia/Bangkok
+Last updated: 2026-06-27 16:14 Asia/Bangkok
+
+## Post-Milestone UX Pass 42 - Adaptive Chat Max Turns
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 16:14 Asia/Bangkok.
+
+## Adaptive Chat Max Turns Completed
+
+- Kept the Chat page simple with no extra composer settings.
+- Raised the default Studio chat turn limit to 16 for complex local chat work.
+- Added adaptive max-turn selection for chat prompts:
+  - 8 turns for lightweight chat.
+  - 12 turns for planning and setup tasks.
+  - 16 turns for document, BCP, diagram, image, workflow, and artifact tasks.
+  - 20 turns for extended research, troubleshooting, implementation, and multi-step work when the configured cap allows it.
+- Added a strict 20-turn cap for chat IPC overrides.
+- Added active-run max-turn metadata to chat state.
+- Added completed-run max-turn metadata to chat process metrics.
+- Updated the right-side AI Process panel to show the selected max-turn budget.
+- Updated route and verify process-step summaries to explain the selected max-turn budget.
+- Added `scripts\test-chat-adaptive-max-turns.ps1`.
+- Added `scripts\run-post-milestone-ux42.ps1`.
+- Added post-milestone UX adaptive max-turn tests.
+
+## Adaptive Chat Max Turns Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused adaptive max-turn validation passes.
+- Full post-milestone UX node regression passes with 177 tests.
+- A BCP/diagram/image prompt selects 16 max turns instead of stopping at the old 6-turn budget.
+- Planning commands like setting computer date/time select 12 max turns.
+- Extended research/troubleshooting prompts can select 20 max turns when configured.
+- The Chat page remains isolated and keeps the single input-first workflow.
+
+## Adaptive Chat Max Turns Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux42.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat adaptive max-turn validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux42/run-summary.json`
+- `artifacts/post-milestone-ux42/chat-adaptive-max-turns.json`
+- `packages/contracts/src/chat.ts`
+- `apps/studio-desktop/src/main/chat-manager.ts`
+- `apps/studio-desktop/src/main/main.ts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `tests/post-milestone-ux/chat-adaptive-max-turns.test.mjs`
+- `tests/post-milestone-ux/chat-thinking-images.test.mjs`
+- `tests/post-milestone-ux/chat-thinking-sidebar.test.mjs`
+- `scripts/test-chat-adaptive-max-turns.ps1`
+- `scripts/run-post-milestone-ux42.ps1`
 
 ## Post-Milestone UX Pass 41 - Chat Thinking Sidebar
 

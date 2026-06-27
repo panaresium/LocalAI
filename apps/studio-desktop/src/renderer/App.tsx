@@ -2016,7 +2016,7 @@ function findLatestThinkingMessage(messages: readonly ChatMessage[]): ChatMessag
   return null;
 }
 
-function buildLiveThinkingSteps(hasContent: boolean): readonly ChatThinkingStep[] {
+function buildLiveThinkingSteps(hasContent: boolean, maxTurns: number | null): readonly ChatThinkingStep[] {
   return [
     {
       id: "understand",
@@ -2027,7 +2027,9 @@ function buildLiveThinkingSteps(hasContent: boolean): readonly ChatThinkingStep[
     {
       id: "route",
       label: "Route",
-      detail: "Using the active chat route and local profile context.",
+      detail: maxTurns === null
+        ? "Using the active chat route and local profile context."
+        : `Using the active chat route with ${maxTurns} max turns.`,
       state: "completed"
     },
     {
@@ -3683,6 +3685,7 @@ export function App(): ReactElement {
   const latestThinkingMessage = useMemo(() => findLatestThinkingMessage(messages), [messages]);
   const latestThinkingTrace: ChatThinkingTrace | null = latestThinkingMessage?.thinkingTrace ?? null;
   const activeChatRunId = chatState?.activeRunId ?? null;
+  const activeChatMaxTurns = chatState?.activeMaxTurns ?? null;
   const pendingAssistantMessage = activeChatRunId
     ? messages.find((message) => message.id === pendingAssistantId(activeChatRunId)) ?? null
     : null;
@@ -3695,8 +3698,11 @@ export function App(): ReactElement {
   const liveChatTokensPerSecond = isChatRunning
     ? Number((liveChatOutputTokens / (liveChatElapsedMs / 1000)).toFixed(2))
     : latestThinkingTrace?.metrics.tokensPerSecond ?? 0;
+  const visibleChatMaxTurns = isChatRunning
+    ? activeChatMaxTurns
+    : latestThinkingTrace?.metrics.maxTurns ?? null;
   const thinkingSidebarSteps = latestThinkingTrace?.steps
-    ?? (isChatRunning ? buildLiveThinkingSteps(liveChatOutputTokens > 0) : buildIdleThinkingSteps());
+    ?? (isChatRunning ? buildLiveThinkingSteps(liveChatOutputTokens > 0, activeChatMaxTurns) : buildIdleThinkingSteps());
   const thinkingSidebarSummary = isChatRunning
     ? "Live user-visible process summary. Private chain-of-thought is not exposed."
     : latestThinkingTrace?.summary ?? "No chat process yet. Type a message to begin.";
@@ -6655,6 +6661,7 @@ export function App(): ReactElement {
           <div className="thinking-metrics" aria-label="AI side panel response metrics">
             <span>{liveChatTokensPerSecond.toFixed(2)} token/s</span>
             <span>{liveChatOutputTokens} tokens</span>
+            <span>{visibleChatMaxTurns === null ? "auto turns" : `${visibleChatMaxTurns} max turns`}</span>
             <span>{formatElapsedMs(liveChatElapsedMs)}</span>
           </div>
           <svg className="thinking-diagram" viewBox="0 0 600 120" role="img" aria-label="AI thinking steps diagram">
