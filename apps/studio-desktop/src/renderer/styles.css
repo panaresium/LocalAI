@@ -279,11 +279,11 @@ textarea {
 
 .chat-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 920px);
-  justify-content: center;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  width: min(100%, 1280px);
+  margin: 0 auto 18px;
   gap: 12px;
-  align-items: stretch;
-  margin-bottom: 18px;
+  align-items: start;
 }
 
 .chat-panel,
@@ -329,6 +329,21 @@ textarea {
 .simple-message-list {
   min-height: 320px;
   max-height: calc(100vh - 355px);
+}
+
+.chat-thinking-sidebar {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.chat-thinking-sidebar.thinking-trace {
+  margin-top: 0;
 }
 
 .empty-chat,
@@ -491,6 +506,61 @@ textarea {
   font-size: 12px;
 }
 
+.thinking-activity {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid #dbe4ee;
+  padding-top: 10px;
+}
+
+.thinking-activity > strong {
+  color: #172234;
+  font-size: 13px;
+}
+
+.thinking-activity ol {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+}
+
+.thinking-activity li {
+  border-left: 3px solid #8a94a3;
+  border-radius: 4px;
+  background: #f8fafc;
+  padding: 6px 8px;
+}
+
+.thinking-activity li.completed {
+  border-left-color: #16a34a;
+}
+
+.thinking-activity li.failed,
+.thinking-activity li.cancelled {
+  border-left-color: #dc2626;
+}
+
+.thinking-activity span,
+.thinking-activity small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.thinking-activity span {
+  color: #223041;
+  font-size: 12px;
+}
+
+.thinking-activity small {
+  margin-top: 2px;
+  color: #66707b;
+  font-size: 11px;
+}
+
 .chat-generated-images {
   display: grid;
   gap: 10px;
@@ -532,6 +602,17 @@ textarea {
 .chat-generated-images figcaption span {
   color: #526173;
   font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  .chat-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-thinking-sidebar {
+    position: static;
+    max-height: none;
+  }
 }
 
 .attachment-list,

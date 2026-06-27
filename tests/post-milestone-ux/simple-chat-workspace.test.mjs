@@ -60,7 +60,8 @@ test("CSS isolates Chat from Admin and other workspaces", () => {
     ".studio-shell.workspace-services :is("
   );
 
-  assert.match(styleSource, /\.chat-workspace \{\s*display: grid;\s*grid-template-columns: minmax\(0, 920px\);/);
+  assert.match(styleSource, /\.chat-workspace \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\) minmax\(300px, 360px\);/);
+  assert.match(styleSource, /\.chat-thinking-sidebar/);
   assert.match(styleSource, /\.simple-chat-panel/);
   assert.match(styleSource, /\.simple-message-list/);
   assert.match(styleSource, /\.simple-composer/);

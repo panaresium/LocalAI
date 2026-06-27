@@ -75,7 +75,7 @@ test("Chat manager builds user-visible thinking traces and local generated image
 
 test("Renderer shows process metrics, step diagram, and generated images inside simple chat", () => {
   assert.match(rendererSource, /thinkingTrace/);
-  assert.match(rendererSource, /className="thinking-trace"/);
+  assert.match(rendererSource, /className="chat-thinking-sidebar thinking-trace"/);
   assert.match(rendererSource, /token\/s/);
   assert.match(rendererSource, /className="thinking-diagram"/);
   assert.match(rendererSource, /AI thinking steps diagram/);

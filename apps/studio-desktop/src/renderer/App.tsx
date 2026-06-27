@@ -13,6 +13,8 @@ import type {
   ChatEvent,
   ChatMessage,
   ChatState,
+  ChatThinkingStep,
+  ChatThinkingTrace,
   CommandCenterState,
   CommandPlan,
   CommandPlanRoute,
@@ -1994,6 +1996,72 @@ function formatElapsedMs(value: number): string {
   return `${(value / 1000).toFixed(1)} s`;
 }
 
+function estimateVisibleChatTokens(text: string): number {
+  const normalized = text.trim();
+  if (normalized.length === 0) {
+    return 0;
+  }
+  const compactLength = normalized.replace(/\s+/gu, "").length;
+  const thaiAndCjkCount = normalized.match(/[\u0E00-\u0E7F\u3400-\u9FFF]/gu)?.length ?? 0;
+  return Math.max(1, Math.ceil(((compactLength - thaiAndCjkCount) / 4) + thaiAndCjkCount));
+}
+
+function findLatestThinkingMessage(messages: readonly ChatMessage[]): ChatMessage | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.thinkingTrace) {
+      return message;
+    }
+  }
+  return null;
+}
+
+function buildLiveThinkingSteps(hasContent: boolean): readonly ChatThinkingStep[] {
+  return [
+    {
+      id: "understand",
+      label: "Understand",
+      detail: "Reading the user request and checking the visible safety boundary.",
+      state: "completed"
+    },
+    {
+      id: "route",
+      label: "Route",
+      detail: "Using the active chat route and local profile context.",
+      state: "completed"
+    },
+    {
+      id: "context",
+      label: "Context",
+      detail: "Preparing available local context and attachment metadata.",
+      state: "completed"
+    },
+    {
+      id: "generate",
+      label: "Generate",
+      detail: hasContent ? "Streaming the assistant response." : "Waiting for the first response tokens.",
+      state: "running"
+    },
+    {
+      id: "verify",
+      label: "Verify",
+      detail: "Final token speed and output checks are calculated after completion.",
+      state: "pending"
+    }
+  ];
+}
+
+function buildIdleThinkingSteps(): readonly ChatThinkingStep[] {
+  return [
+    {
+      id: "idle",
+      label: "Ready",
+      detail: "Type a message to start a visible process summary.",
+      state: "pending"
+    }
+  ];
+}
+
 function formatBytes(value: number): string {
   if (value < 1024) {
     return `${value} B`;
@@ -2086,6 +2154,8 @@ export function App(): ReactElement {
   const [packagingState, setPackagingState] = useState<PackagingHardeningState | null>(null);
   const [messages, setMessages] = useState<readonly ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [activeChatRunStartedAt, setActiveChatRunStartedAt] = useState<number | null>(null);
+  const [chatNow, setChatNow] = useState(Date.now());
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [projectDraft, setProjectDraft] = useState<ProjectDraft | null>(null);
   const [configDraft, setConfigDraft] = useState<string | null>(null);
@@ -3370,6 +3440,13 @@ export function App(): ReactElement {
     void refresh();
     const unsubscribe = window.hermesStudio.onChatEvent((event) => {
       setMessages((existing) => applyChatEvent(existing, event));
+      if (event.type === "runStarted") {
+        setActiveChatRunStartedAt(Date.now());
+        setChatNow(Date.now());
+      }
+      if (event.type === "runCompleted" || event.type === "runFailed" || event.type === "runCancelled") {
+        setActiveChatRunStartedAt(null);
+      }
       if ("state" in event) {
         setChatState(event.state);
         if (event.state.activeSessionId) {
@@ -3385,6 +3462,18 @@ export function App(): ReactElement {
       window.clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeChatRunStartedAt === null) {
+      return undefined;
+    }
+    const timer = window.setInterval(() => {
+      setChatNow(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [activeChatRunStartedAt]);
 
   useEffect(() => {
     if (!profileConfigState) {
@@ -3591,6 +3680,29 @@ export function App(): ReactElement {
     commandPolicy?.requiresApproval ?? true
   );
   const isChatRunning = chatState?.runStatus === "running";
+  const latestThinkingMessage = useMemo(() => findLatestThinkingMessage(messages), [messages]);
+  const latestThinkingTrace: ChatThinkingTrace | null = latestThinkingMessage?.thinkingTrace ?? null;
+  const activeChatRunId = chatState?.activeRunId ?? null;
+  const pendingAssistantMessage = activeChatRunId
+    ? messages.find((message) => message.id === pendingAssistantId(activeChatRunId)) ?? null
+    : null;
+  const liveChatElapsedMs = activeChatRunStartedAt === null
+    ? latestThinkingTrace?.metrics.elapsedMs ?? 0
+    : Math.max(1, chatNow - activeChatRunStartedAt);
+  const liveChatOutputTokens = isChatRunning
+    ? estimateVisibleChatTokens(pendingAssistantMessage?.content ?? "")
+    : latestThinkingTrace?.metrics.outputTokens ?? 0;
+  const liveChatTokensPerSecond = isChatRunning
+    ? Number((liveChatOutputTokens / (liveChatElapsedMs / 1000)).toFixed(2))
+    : latestThinkingTrace?.metrics.tokensPerSecond ?? 0;
+  const thinkingSidebarSteps = latestThinkingTrace?.steps
+    ?? (isChatRunning ? buildLiveThinkingSteps(liveChatOutputTokens > 0) : buildIdleThinkingSteps());
+  const thinkingSidebarSummary = isChatRunning
+    ? "Live user-visible process summary. Private chain-of-thought is not exposed."
+    : latestThinkingTrace?.summary ?? "No chat process yet. Type a message to begin.";
+  const recentChatTimeline = useMemo(() => (
+    [...(chatState?.timeline ?? [])].sort((a, b) => b.id - a.id).slice(0, 4)
+  ), [chatState]);
   const workspaceBadges: Record<WorkspaceId, number> = {
     chat: messages.length || (chatState?.sessions.length ?? 0),
     command: recentCommandPlans.length,
@@ -6488,53 +6600,6 @@ export function App(): ReactElement {
                   <time>{new Date(message.createdAt).toLocaleTimeString()}</time>
                 </div>
                 <p>{message.content || (message.role === "assistant" && isChatRunning ? "Thinking..." : "")}</p>
-                {message.thinkingTrace ? (
-                  <details className="thinking-trace" open={message.role === "assistant"}>
-                    <summary>
-                      <span>AI process</span>
-                      <strong>{message.thinkingTrace.metrics.tokensPerSecond.toFixed(2)} token/s</strong>
-                    </summary>
-                    <p>{message.thinkingTrace.summary}</p>
-                    <div className="thinking-metrics" aria-label="AI response metrics">
-                      <span>{message.thinkingTrace.metrics.outputTokens} tokens</span>
-                      <span>{formatElapsedMs(message.thinkingTrace.metrics.elapsedMs)}</span>
-                      <span>{message.thinkingTrace.steps.length} steps</span>
-                    </div>
-                    <svg className="thinking-diagram" viewBox="0 0 600 120" role="img" aria-label="AI thinking steps diagram">
-                      {message.thinkingTrace.diagram.edges.map((edge) => {
-                        const fromIndex = message.thinkingTrace?.diagram.nodes.findIndex((node) => node.id === edge.from) ?? 0;
-                        const toIndex = message.thinkingTrace?.diagram.nodes.findIndex((node) => node.id === edge.to) ?? 0;
-                        const total = message.thinkingTrace?.diagram.nodes.length ?? 1;
-                        return (
-                          <line
-                            key={`${edge.from}-${edge.to}`}
-                            x1={thinkingNodeX(fromIndex, total)}
-                            y1="42"
-                            x2={thinkingNodeX(toIndex, total)}
-                            y2="42"
-                            className="thinking-edge"
-                          />
-                        );
-                      })}
-                      {message.thinkingTrace.diagram.nodes.map((node, index) => (
-                        <g className={`thinking-node ${node.state}`} key={node.id}>
-                          <circle cx={thinkingNodeX(index, message.thinkingTrace?.diagram.nodes.length ?? 1)} cy="42" r="16" />
-                          <text x={thinkingNodeX(index, message.thinkingTrace?.diagram.nodes.length ?? 1)} y="82">
-                            {node.label}
-                          </text>
-                        </g>
-                      ))}
-                    </svg>
-                    <ol className="thinking-steps">
-                      {message.thinkingTrace.steps.map((step) => (
-                        <li className={step.state} key={step.id}>
-                          <strong>{step.label}</strong>
-                          <span>{step.detail}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                ) : null}
                 {message.generatedImages.length > 0 ? (
                   <div className="chat-generated-images" aria-label="Generated chat images">
                     {message.generatedImages.map((image) => (
@@ -6580,6 +6645,62 @@ export function App(): ReactElement {
             </div>
           </div>
         </section>
+
+        <aside className="chat-thinking-sidebar thinking-trace" aria-label="Chat thinking side panel">
+          <div className="panel-heading">
+            <h2>AI Process</h2>
+            <span>{isChatRunning ? "running" : chatState?.runStatus ?? "idle"}</span>
+          </div>
+          <p>{thinkingSidebarSummary}</p>
+          <div className="thinking-metrics" aria-label="AI side panel response metrics">
+            <span>{liveChatTokensPerSecond.toFixed(2)} token/s</span>
+            <span>{liveChatOutputTokens} tokens</span>
+            <span>{formatElapsedMs(liveChatElapsedMs)}</span>
+          </div>
+          <svg className="thinking-diagram" viewBox="0 0 600 120" role="img" aria-label="AI thinking steps diagram">
+            {thinkingSidebarSteps.slice(1).map((step, index) => (
+              <line
+                key={`${thinkingSidebarSteps[index]?.id ?? "start"}-${step.id}`}
+                x1={thinkingNodeX(index, thinkingSidebarSteps.length)}
+                y1="42"
+                x2={thinkingNodeX(index + 1, thinkingSidebarSteps.length)}
+                y2="42"
+                className="thinking-edge"
+              />
+            ))}
+            {thinkingSidebarSteps.map((step, index) => (
+              <g className={`thinking-node ${step.state}`} key={step.id}>
+                <circle cx={thinkingNodeX(index, thinkingSidebarSteps.length)} cy="42" r="16" />
+                <text x={thinkingNodeX(index, thinkingSidebarSteps.length)} y="82">
+                  {step.label}
+                </text>
+              </g>
+            ))}
+          </svg>
+          <ol className="thinking-steps" aria-label="AI step by step process">
+            {thinkingSidebarSteps.map((step) => (
+              <li className={step.state} key={step.id}>
+                <strong>{step.label}</strong>
+                <span>{step.detail}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="thinking-activity" aria-label="Recent AI activity">
+            <strong>Recent Activity</strong>
+            {recentChatTimeline.length > 0 ? (
+              <ol>
+                {recentChatTimeline.map((entry) => (
+                  <li className={entry.state} key={entry.id}>
+                    <span>{entry.title}</span>
+                    <small>{entry.detail}</small>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <span>No activity yet.</span>
+            )}
+          </div>
+        </aside>
       </section>
 
       <section className="admin-workspace" aria-label="Profiles projects and config">

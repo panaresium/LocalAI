@@ -1,6 +1,61 @@
 # STATUS
 
-Last updated: 2026-06-27 13:03 Asia/Bangkok
+Last updated: 2026-06-27 13:17 Asia/Bangkok
+
+## Post-Milestone UX Pass 41 - Chat Thinking Sidebar
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 13:17 Asia/Bangkok.
+
+## Chat Thinking Sidebar Completed
+
+- Moved the AI process view out of assistant message bubbles into a dedicated right-side Chat panel.
+- Added live run timing for active chat responses.
+- Added live estimated token/s and output token counts while the model is responding.
+- Added a sticky right-side step-by-step process diagram for the active or latest chat run.
+- Added a right-side step list showing Understand, Route, Context, Generate, and Verify states.
+- Added recent chat activity from the chat timeline in the right-side panel.
+- Kept generated images inside assistant chat messages for easy review.
+- Preserved the simple Chat input flow: users still only type and send.
+- Added responsive layout so the side panel stacks below chat on narrower screens.
+- Added `scripts\test-chat-thinking-sidebar.ps1`.
+- Added `scripts\run-post-milestone-ux41.ps1`.
+- Added post-milestone UX chat thinking sidebar tests.
+
+## Chat Thinking Sidebar Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat thinking sidebar validation passes.
+- Full post-milestone UX node regression passes with 173 tests.
+- Chat process information is shown in the side panel, not inline in each message bubble.
+- The Chat page remains isolated from profile, model, and configuration controls.
+
+## Chat Thinking Sidebar Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux41.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat thinking sidebar validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux41/run-summary.json`
+- `artifacts/post-milestone-ux41/chat-thinking-sidebar.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-thinking-sidebar.test.mjs`
+- `tests/post-milestone-ux/chat-thinking-images.test.mjs`
+- `tests/post-milestone-ux/simple-chat-workspace.test.mjs`
+- `scripts/test-chat-thinking-sidebar.ps1`
+- `scripts/run-post-milestone-ux41.ps1`
 
 ## Post-Milestone UX Pass 40 - Chat Thinking And Images
 
