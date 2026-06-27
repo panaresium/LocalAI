@@ -1,0 +1,7 @@
+{
+  "name": "@hermes-local-ai/studio-dashboard-plugin",
+  "version": "0.0.0-milestone0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

@@ -1,0 +1,77 @@
+# Dependencies and package manager caches
+node_modules/
+.pnpm-store/
+.yarn/
+.npm/
+
+# Generated builds and compiled outputs
+dist/
+build/
+out/
+coverage/
+bin/
+obj/
+*.tsbuildinfo
+*.map
+
+# Local validation and runtime artifacts
+artifacts/
+apps/artifacts/
+*.log
+*.tmp
+*.temp
+*.cache
+*.bak
+
+# Local profiles, memory, user state, and generated knowledge stores
+profiles/
+.agents/
+.hermes/
+hermes/
+memory/
+memories/
+skills/
+knowledge-index/
+knowledge-store/
+rag-index/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+auth.json
+auth.lock
+state.db
+*.db
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+*secret*
+*token*
+
+# Model binaries and local model caches
+models/
+ollama/
+*.gguf
+*.safetensors
+*.onnx
+*.ckpt
+*.pt
+*.pth
+*.model
+
+# Local office/document exports that may carry user metadata
+*.docx
+*.pptx
+*.xlsx
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

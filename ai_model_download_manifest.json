@@ -1,0 +1,148 @@
+{
+  "document_version": "1.0",
+  "date": "2026-06-26",
+  "baseline_install_order": [
+    {
+      "type": "runtime",
+      "name": "Ollama for Windows",
+      "url": "https://ollama.com/download/windows",
+      "windows_command": "irm https://ollama.com/install.ps1 | iex"
+    },
+    {
+      "type": "runtime",
+      "name": "Hermes Agent",
+      "url": "https://hermes-agent.nousresearch.com/docs/getting-started/installation",
+      "windows_command": "iex (irm https://hermes-agent.nousresearch.com/install.ps1)"
+    }
+  ],
+  "ollama_models_baseline": [
+    {
+      "role": "controller.fast",
+      "model": "qwen3.5:4b",
+      "command": "ollama pull qwen3.5:4b",
+      "source_url": "https://ollama.com/library/qwen3.5:4b",
+      "lifecycle": "pinned",
+      "keep_alive": "-1"
+    },
+    {
+      "role": "agent.general",
+      "model": "qwen3.5:9b",
+      "command": "ollama pull qwen3.5:9b",
+      "source_url": "https://ollama.com/library/qwen3.5",
+      "lifecycle": "warm",
+      "keep_alive": "15m"
+    },
+    {
+      "role": "vision.ui_grounding",
+      "model": "qwen3-vl:4b",
+      "command": "ollama pull qwen3-vl:4b",
+      "source_url": "https://ollama.com/library/qwen3-vl",
+      "lifecycle": "on_demand",
+      "keep_alive": "3m"
+    },
+    {
+      "role": "retrieval.embedding",
+      "model": "qwen3-embedding:0.6b",
+      "command": "ollama pull qwen3-embedding:0.6b",
+      "source_url": "https://ollama.com/library/qwen3-embedding",
+      "lifecycle": "batch",
+      "keep_alive": "2m"
+    }
+  ],
+  "ollama_models_optional": [
+    {
+      "role": "controller.low_resource",
+      "model": "qwen3.5:2b",
+      "command": "ollama pull qwen3.5:2b",
+      "source_url": "https://ollama.com/library/qwen3.5",
+      "lifecycle": "pinned_or_on_demand"
+    },
+    {
+      "role": "vision.ui_grounding.stronger",
+      "model": "qwen3-vl:8b",
+      "command": "ollama pull qwen3-vl:8b",
+      "source_url": "https://ollama.com/library/qwen3-vl:8b",
+      "lifecycle": "on_demand"
+    },
+    {
+      "role": "controller.ultra_small",
+      "model": "qwen3:0.6b",
+      "command": "ollama pull qwen3:0.6b",
+      "source_url": "https://ollama.com/library/qwen3:0.6b",
+      "lifecycle": "on_demand"
+    },
+    {
+      "role": "agent.future_larger",
+      "model": "qwen3.6",
+      "command": "ollama pull qwen3.6",
+      "source_url": "https://ollama.com/library/qwen3.6",
+      "lifecycle": "on_demand"
+    }
+  ],
+  "non_ollama_local_models_and_engines": [
+    {
+      "role": "retrieval.reranker",
+      "name": "Qwen3-Reranker-0.6B",
+      "source_url": "https://huggingface.co/Qwen/Qwen3-Reranker-0.6B",
+      "runtime_note": "Implement with Python/Transformers, ONNX, vLLM, or verified GGUF after Milestone 0 compatibility testing."
+    },
+    {
+      "role": "speech.asr.fast",
+      "name": "Qwen3-ASR-0.6B",
+      "source_url": "https://huggingface.co/Qwen/Qwen3-ASR-0.6B",
+      "runtime_note": "Use Qwen3-ASR repository examples/runtime; verify Thai and English samples."
+    },
+    {
+      "role": "speech.asr.accurate",
+      "name": "Qwen3-ASR-1.7B",
+      "source_url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B",
+      "runtime_note": "Use for higher-accuracy transcription if hardware supports it."
+    },
+    {
+      "role": "speech.asr.fallback",
+      "name": "faster-whisper",
+      "source_url": "https://github.com/SYSTRAN/faster-whisper",
+      "runtime_note": "Mature ASR fallback with CTranslate2."
+    },
+    {
+      "role": "speech.vad",
+      "name": "Silero VAD",
+      "source_url": "https://github.com/snakers4/silero-vad",
+      "runtime_note": "Lightweight always-resident VAD."
+    },
+    {
+      "role": "speech.tts.fast",
+      "name": "Kokoro-82M",
+      "source_url": "https://huggingface.co/hexgrad/Kokoro-82M",
+      "runtime_note": "Local TTS candidate; Thai support/quality must be verified."
+    },
+    {
+      "role": "image.generate / video.generate",
+      "name": "ComfyUI",
+      "source_url": "https://github.com/comfy-org/comfyui",
+      "runtime_note": "Local image/video/audio generation backend; integrate as a service."
+    }
+  ],
+  "external_provider_docs": [
+    {
+      "provider": "OpenAI",
+      "url": "https://developers.openai.com/api/docs"
+    },
+    {
+      "provider": "Anthropic",
+      "url": "https://platform.claude.com/docs"
+    },
+    {
+      "provider": "Google Gemini",
+      "url": "https://ai.google.dev/gemini-api/docs"
+    },
+    {
+      "provider": "LiteLLM",
+      "url": "https://docs.litellm.ai/docs/routing-load-balancing"
+    },
+    {
+      "provider": "OpenRouter",
+      "url": "https://openrouter.ai/"
+    }
+  ]
+}

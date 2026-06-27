@@ -1,0 +1,694 @@
+import { randomUUID } from "node:crypto";
+import { freemem, totalmem } from "node:os";
+
+import type {
+  ModelBenchmarkResult,
+  ModelFabricState,
+  ModelLifecycleRequest,
+  ModelPlanValidationError,
+  ModelPlanValidationResult,
+  ModelPrivacyPreset,
+  ModelProviderHealth,
+  ModelProviderStatus,
+  ModelRegistryEntry,
+  ModelResourceSnapshot,
+  ModelRoleAlias,
+  ModelRoleRoute,
+  RouteModelRoleRequest,
+  RunModelBenchmarkRequest,
+  ValidateModelPlanRequest
+} from "@hermes-local-ai/contracts";
+
+interface SeedProvider {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: ModelProviderStatus["kind"];
+  readonly endpoint: string | null;
+  readonly enabled: boolean;
+  readonly privacyBoundary: ModelProviderStatus["privacyBoundary"];
+  readonly requiresApiKey: boolean;
+}
+
+interface SeedModel {
+  readonly id: string;
+  readonly providerId: string;
+  readonly model: string;
+  readonly label: string;
+  readonly roles: readonly ModelRoleAlias[];
+  readonly lifecycle: ModelRegistryEntry["lifecycle"];
+  readonly contextLength: number;
+  readonly capabilities: readonly string[];
+  readonly enabled: boolean;
+  readonly local: boolean;
+  readonly notes: string;
+}
+
+interface OllamaSnapshot {
+  readonly health: ModelProviderHealth;
+  readonly installedModels: readonly string[];
+  readonly loadedModels: readonly string[];
+}
+
+interface OllamaTagsResponse {
+  readonly models?: readonly {
+    readonly name?: string;
+    readonly model?: string;
+  }[];
+}
+
+interface OllamaPsResponse {
+  readonly models?: readonly {
+    readonly name?: string;
+    readonly model?: string;
+  }[];
+}
+
+interface OllamaGenerateResponse {
+  readonly response?: string;
+  readonly error?: string;
+}
+
+interface ExecutionPlanStage {
+  readonly id?: unknown;
+  readonly type?: unknown;
+  readonly role?: unknown;
+  readonly depends_on?: unknown;
+}
+
+export interface ModelFabricManagerOptions {
+  readonly ollamaBaseUrl?: string;
+  readonly fetch?: typeof fetch;
+  readonly now?: () => Date;
+}
+
+const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
+const DEFAULT_PRIVACY_PRESET: ModelPrivacyPreset = "offline-secure";
+const MODEL_FABRIC_ROLE_ALIASES: readonly ModelRoleAlias[] = [
+  "controller.fast",
+  "agent.general",
+  "agent.deep",
+  "agent.code",
+  "agent.summarize",
+  "agent.verify",
+  "vision.general",
+  "vision.ui_grounding",
+  "vision.document",
+  "vision.video",
+  "speech.vad",
+  "speech.asr.fast",
+  "speech.asr.accurate",
+  "speech.tts.fast",
+  "speech.tts.quality",
+  "retrieval.embedding",
+  "retrieval.reranker",
+  "image.generate",
+  "image.edit",
+  "image.verify",
+  "video.analyze",
+  "video.generate",
+  "translation.fast",
+  "translation.quality"
+];
+const ROLE_SET = new Set<string>(MODEL_FABRIC_ROLE_ALIASES);
+const DIRECT_OS_TOOL_PREFIXES = [
+  "app.",
+  "window.",
+  "ui.",
+  "mouse.",
+  "keyboard.",
+  "clipboard.",
+  "screen.",
+  "powershell.",
+  "filesystem.",
+  "file."
+];
+
+const PROVIDERS: readonly SeedProvider[] = [
+  {
+    id: "ollama",
+    label: "Ollama Local",
+    kind: "ollama",
+    endpoint: DEFAULT_OLLAMA_BASE_URL,
+    enabled: true,
+    privacyBoundary: "local",
+    requiresApiKey: false
+  },
+  {
+    id: "openai",
+    label: "OpenAI API",
+    kind: "external-api",
+    endpoint: null,
+    enabled: false,
+    privacyBoundary: "external",
+    requiresApiKey: true
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic API",
+    kind: "external-api",
+    endpoint: null,
+    enabled: false,
+    privacyBoundary: "external",
+    requiresApiKey: true
+  },
+  {
+    id: "google-ai-studio",
+    label: "Google AI Studio API",
+    kind: "external-api",
+    endpoint: null,
+    enabled: false,
+    privacyBoundary: "external",
+    requiresApiKey: true
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter API",
+    kind: "external-api",
+    endpoint: null,
+    enabled: false,
+    privacyBoundary: "external",
+    requiresApiKey: true
+  }
+];
+
+const SEED_MODELS: readonly SeedModel[] = [
+  {
+    id: "ollama:qwen3.5:4b",
+    providerId: "ollama",
+    model: "qwen3.5:4b",
+    label: "Qwen3.5 4B",
+    roles: ["controller.fast", "agent.general", "agent.summarize", "agent.verify", "translation.fast"],
+    lifecycle: "pinned",
+    contextLength: 65536,
+    capabilities: ["text", "structured-output", "local"],
+    enabled: true,
+    local: true,
+    notes: "Baseline local controller and general chat model."
+  },
+  {
+    id: "ollama:qwen3.5:9b",
+    providerId: "ollama",
+    model: "qwen3.5:9b",
+    label: "Qwen3.5 9B",
+    roles: ["agent.general", "agent.deep", "agent.code", "agent.verify", "translation.quality"],
+    lifecycle: "warm",
+    contextLength: 65536,
+    capabilities: ["text", "code", "structured-output", "local"],
+    enabled: true,
+    local: true,
+    notes: "Stronger local text, reasoning, and code model."
+  },
+  {
+    id: "ollama:qwen3-vl:4b",
+    providerId: "ollama",
+    model: "qwen3-vl:4b",
+    label: "Qwen3 VL 4B",
+    roles: ["vision.general", "vision.ui_grounding", "vision.document", "vision.video"],
+    lifecycle: "on-demand",
+    contextLength: 32768,
+    capabilities: ["vision", "image", "local"],
+    enabled: true,
+    local: true,
+    notes: "Baseline local vision model."
+  },
+  {
+    id: "ollama:qwen3-embedding:0.6b",
+    providerId: "ollama",
+    model: "qwen3-embedding:0.6b",
+    label: "Qwen3 Embedding 0.6B",
+    roles: ["retrieval.embedding"],
+    lifecycle: "batch",
+    contextLength: 8192,
+    capabilities: ["embedding", "retrieval", "local"],
+    enabled: true,
+    local: true,
+    notes: "Baseline local embedding model for future knowledge indexing."
+  }
+];
+
+export class ModelFabricManager {
+  private readonly ollamaBaseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly now: () => Date;
+  private readonly benchmarks: ModelBenchmarkResult[] = [];
+  private readonly routeOverrides = new Map<ModelRoleAlias, string>();
+
+  public constructor(options: ModelFabricManagerOptions = {}) {
+    this.ollamaBaseUrl = removeTrailingSlash(options.ollamaBaseUrl ?? DEFAULT_OLLAMA_BASE_URL);
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.now = options.now ?? (() => new Date());
+  }
+
+  public async getState(): Promise<ModelFabricState> {
+    const ollama = await this.readOllamaSnapshot();
+    const providers = this.buildProviderStatuses(ollama.health);
+    const models = this.buildModelRegistry(ollama);
+    const resources = this.buildResourceSnapshot(ollama);
+    const routes = MODEL_FABRIC_ROLE_ALIASES.map((role) => this.routeWithRegistry(models, providers, {
+      role,
+      privacyPreset: DEFAULT_PRIVACY_PRESET,
+      overrideModelId: this.routeOverrides.get(role) ?? null
+    }));
+
+    return {
+      providers,
+      models,
+      routes,
+      resources,
+      benchmarks: [...this.benchmarks]
+    };
+  }
+
+  public async routeRole(request: RouteModelRoleRequest): Promise<ModelRoleRoute> {
+    if (!isModelRoleAlias(request.role)) {
+      throw new Error("Invalid model role.");
+    }
+    if (!isPrivacyPreset(request.privacyPreset)) {
+      throw new Error("Invalid privacy preset.");
+    }
+
+    if (request.overrideModelId) {
+      this.routeOverrides.set(request.role, request.overrideModelId);
+    } else {
+      this.routeOverrides.delete(request.role);
+    }
+
+    const state = await this.getState();
+    return this.routeWithRegistry(state.models, state.providers, request);
+  }
+
+  public async lifecycle(request: ModelLifecycleRequest): Promise<ModelFabricState> {
+    if (request.action !== "load" && request.action !== "unload") {
+      throw new Error("Invalid lifecycle action.");
+    }
+    const state = await this.getState();
+    const model = state.models.find((entry) => entry.id === request.modelId);
+    if (!model) {
+      throw new Error("Unknown model.");
+    }
+    if (model.providerId !== "ollama") {
+      throw new Error("Only the local Ollama adapter supports lifecycle operations in this milestone.");
+    }
+
+    const body = request.action === "unload"
+      ? buildOllamaGenerateRequest(model.model, "", 0)
+      : buildOllamaGenerateRequest(model.model, "", `${request.keepAliveSeconds ?? 300}s`);
+
+    await this.postOllama("/api/generate", body);
+    return this.getState();
+  }
+
+  public async benchmark(request: RunModelBenchmarkRequest): Promise<ModelBenchmarkResult> {
+    if (!isModelRoleAlias(request.role)) {
+      throw new Error("Invalid benchmark role.");
+    }
+
+    const state = await this.getState();
+    const model = state.models.find((entry) => entry.id === request.modelId);
+    if (!model) {
+      throw new Error("Unknown model.");
+    }
+    if (!model.roles.includes(request.role)) {
+      throw new Error("Model is not assigned to the requested role.");
+    }
+    if (model.providerId !== "ollama") {
+      throw new Error("External benchmark calls are disabled until a privacy and cost policy is implemented.");
+    }
+
+    const started = Date.now();
+    try {
+      const response = await this.postOllama<OllamaGenerateResponse>("/api/generate", buildOllamaGenerateRequest(
+        model.model,
+        request.prompt ?? "Reply with one short local model status line.",
+        "30s"
+      ));
+      const output = response.response ?? "";
+      const result: ModelBenchmarkResult = {
+        id: randomUUID(),
+        modelId: model.id,
+        role: request.role,
+        status: response.error ? "failed" : "passed",
+        latencyMs: Date.now() - started,
+        outputChars: output.length,
+        detail: response.error ?? `Generated ${output.length} characters.`,
+        checkedAt: this.now().toISOString()
+      };
+      this.pushBenchmark(result);
+      return result;
+    } catch (error) {
+      const result: ModelBenchmarkResult = {
+        id: randomUUID(),
+        modelId: model.id,
+        role: request.role,
+        status: "failed",
+        latencyMs: Date.now() - started,
+        outputChars: 0,
+        detail: error instanceof Error ? error.message : String(error),
+        checkedAt: this.now().toISOString()
+      };
+      this.pushBenchmark(result);
+      return result;
+    }
+  }
+
+  public validatePlan(request: ValidateModelPlanRequest): ModelPlanValidationResult {
+    if (!isPrivacyPreset(request.privacyPreset)) {
+      return invalidResult([{ path: "$.privacyPreset", message: "Invalid privacy preset." }]);
+    }
+    if (!isRecord(request.plan)) {
+      return invalidResult([{ path: "$", message: "Plan must be a JSON object." }]);
+    }
+
+    const errors: ModelPlanValidationError[] = [];
+    const acceptedStageIds: string[] = [];
+    const blockedStageIds: string[] = [];
+    const stages = request.plan.stages;
+    if (typeof request.plan.intent !== "string" || request.plan.intent.trim().length === 0) {
+      errors.push({ path: "$.intent", message: "Intent is required." });
+    }
+    if (typeof request.plan.cloud_allowed !== "boolean") {
+      errors.push({ path: "$.cloud_allowed", message: "cloud_allowed must be boolean." });
+    }
+    if (request.privacyPreset === "offline-secure" && request.plan.cloud_allowed === true) {
+      errors.push({ path: "$.cloud_allowed", message: "Offline Secure plans cannot allow cloud execution." });
+    }
+    if (!Array.isArray(stages) || stages.length === 0) {
+      errors.push({ path: "$.stages", message: "At least one stage is required." });
+      return {
+        valid: false,
+        errors,
+        acceptedStageIds,
+        blockedStageIds
+      };
+    }
+
+    const stageIds = new Set<string>();
+    stages.forEach((stage: unknown, index: number) => {
+      if (!isRecord(stage)) {
+        errors.push({ path: `$.stages[${index}]`, message: "Stage must be an object." });
+        return;
+      }
+      const typedStage = stage as ExecutionPlanStage;
+      if (typeof typedStage.id !== "string" || !/^[a-z][a-z0-9-]{1,63}$/u.test(typedStage.id)) {
+        errors.push({ path: `$.stages[${index}].id`, message: "Stage id must be a stable lowercase id." });
+        return;
+      }
+      if (stageIds.has(typedStage.id)) {
+        errors.push({ path: `$.stages[${index}].id`, message: "Stage id must be unique." });
+      }
+      stageIds.add(typedStage.id);
+
+      if (typedStage.type !== "model" && typedStage.type !== "tool") {
+        errors.push({ path: `$.stages[${index}].type`, message: "Stage type must be model or tool." });
+      }
+      if (typeof typedStage.role !== "string" || typedStage.role.trim().length === 0) {
+        errors.push({ path: `$.stages[${index}].role`, message: "Stage role is required." });
+      }
+      if (typedStage.type === "model" && typeof typedStage.role === "string" && !ROLE_SET.has(typedStage.role)) {
+        errors.push({ path: `$.stages[${index}].role`, message: "Model stage role must be a registered model alias." });
+      }
+      if (typedStage.type === "tool" && typeof typedStage.role === "string" && isDirectOsToolRole(typedStage.role)) {
+        blockedStageIds.push(typedStage.id);
+        errors.push({
+          path: `$.stages[${index}].role`,
+          message: "Direct OS tool execution is blocked by Model Fabric; route through the Windows broker milestone."
+        });
+      }
+      if (typedStage.depends_on !== undefined && !isStringArray(typedStage.depends_on)) {
+        errors.push({ path: `$.stages[${index}].depends_on`, message: "depends_on must be a string array." });
+      }
+      if (!blockedStageIds.includes(typedStage.id)) {
+        acceptedStageIds.push(typedStage.id);
+      }
+    });
+
+    for (const [index, stage] of stages.entries()) {
+      if (!isRecord(stage) || !Array.isArray(stage.depends_on)) {
+        continue;
+      }
+      for (const dependency of stage.depends_on) {
+        if (typeof dependency === "string" && !stageIds.has(dependency)) {
+          errors.push({ path: `$.stages[${index}].depends_on`, message: `Unknown dependency: ${dependency}.` });
+        }
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      acceptedStageIds,
+      blockedStageIds
+    };
+  }
+
+  private routeWithRegistry(
+    models: readonly ModelRegistryEntry[],
+    providers: readonly ModelProviderStatus[],
+    request: RouteModelRoleRequest
+  ): ModelRoleRoute {
+    const rejected: { modelId: string; reason: string }[] = [];
+    const providerById = new Map(providers.map((provider) => [provider.id, provider]));
+    const candidates = models.filter((model) => model.roles.includes(request.role));
+    const override = request.overrideModelId
+      ? candidates.find((model) => model.id === request.overrideModelId) ?? null
+      : null;
+
+    if (request.overrideModelId && !override) {
+      rejected.push({ modelId: request.overrideModelId, reason: "Override model is not assigned to this role." });
+    }
+
+    const eligible = candidates.filter((model) => {
+      const provider = providerById.get(model.providerId);
+      const rejection = getModelRejection(model, provider, request.privacyPreset);
+      if (rejection) {
+        rejected.push({ modelId: model.id, reason: rejection });
+        return false;
+      }
+      return true;
+    });
+
+    const selected = override && eligible.some((model) => model.id === override.id)
+      ? override
+      : [...eligible].sort((left, right) => scoreModel(right) - scoreModel(left))[0] ?? null;
+
+    return {
+      role: request.role,
+      privacyPreset: request.privacyPreset,
+      selectedModelId: selected?.id ?? null,
+      providerId: selected?.providerId ?? null,
+      reason: selected
+        ? buildRouteReason(selected, request.overrideModelId === selected.id)
+        : "No eligible model is installed and allowed for this role.",
+      overrideModelId: request.overrideModelId,
+      rejected
+    };
+  }
+
+  private async readOllamaSnapshot(): Promise<OllamaSnapshot> {
+    const started = Date.now();
+    try {
+      const tags = await this.getOllama<OllamaTagsResponse>("/api/tags");
+      const ps = await this.getOllama<OllamaPsResponse>("/api/ps");
+      const installedModels = extractOllamaModelNames(tags.models ?? []);
+      const loadedModels = extractOllamaModelNames(ps.models ?? []);
+      return {
+        health: {
+          state: "healthy",
+          detail: "Ollama API responded.",
+          latencyMs: Date.now() - started
+        },
+        installedModels,
+        loadedModels
+      };
+    } catch (error) {
+      return {
+        health: {
+          state: "unhealthy",
+          detail: error instanceof Error ? error.message : String(error),
+          latencyMs: null
+        },
+        installedModels: [],
+        loadedModels: []
+      };
+    }
+  }
+
+  private buildProviderStatuses(ollamaHealth: ModelProviderHealth): readonly ModelProviderStatus[] {
+    return PROVIDERS.map((provider) => ({
+      id: provider.id,
+      label: provider.label,
+      kind: provider.kind,
+      endpoint: provider.id === "ollama" ? this.ollamaBaseUrl : provider.endpoint,
+      enabled: provider.enabled,
+      privacyBoundary: provider.privacyBoundary,
+      requiresApiKey: provider.requiresApiKey,
+      health: provider.id === "ollama" ? ollamaHealth : {
+        state: "unknown",
+        detail: "Adapter is registered but disabled until privacy and cost policy is configured.",
+        latencyMs: null
+      }
+    }));
+  }
+
+  private buildModelRegistry(ollama: OllamaSnapshot): readonly ModelRegistryEntry[] {
+    const installed = new Set(ollama.installedModels);
+    const loaded = new Set(ollama.loadedModels);
+    return SEED_MODELS.map((model) => ({
+      ...model,
+      installed: model.providerId === "ollama" ? installed.has(model.model) : false,
+      loaded: model.providerId === "ollama" ? loaded.has(model.model) : false
+    }));
+  }
+
+  private buildResourceSnapshot(ollama: OllamaSnapshot): ModelResourceSnapshot {
+    return {
+      checkedAt: this.now().toISOString(),
+      totalMemoryBytes: totalmem(),
+      freeMemoryBytes: freemem(),
+      ollamaInstalledModels: ollama.installedModels,
+      ollamaLoadedModels: ollama.loadedModels
+    };
+  }
+
+  private async getOllama<T>(path: string): Promise<T> {
+    const response = await this.fetchImpl(`${this.ollamaBaseUrl}${path}`, {
+      method: "GET"
+    });
+    if (!response.ok) {
+      throw new Error(`Ollama request failed: ${response.status}`);
+    }
+    return response.json() as Promise<T>;
+  }
+
+  private async postOllama<T>(path: string, body: unknown): Promise<T> {
+    const response = await this.fetchImpl(`${this.ollamaBaseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      throw new Error(`Ollama request failed: ${response.status}`);
+    }
+    return response.json() as Promise<T>;
+  }
+
+  private pushBenchmark(result: ModelBenchmarkResult): void {
+    this.benchmarks.push(result);
+    if (this.benchmarks.length > 20) {
+      this.benchmarks.splice(0, this.benchmarks.length - 20);
+    }
+  }
+}
+
+export function buildOllamaGenerateRequest(
+  model: string,
+  prompt: string,
+  keepAlive: string | number
+): { readonly model: string; readonly prompt: string; readonly stream: false; readonly keep_alive: string | number } {
+  return {
+    model,
+    prompt,
+    stream: false,
+    keep_alive: keepAlive
+  };
+}
+
+export function isModelRoleAlias(value: unknown): value is ModelRoleAlias {
+  return typeof value === "string" && ROLE_SET.has(value);
+}
+
+export function isPrivacyPreset(value: unknown): value is ModelPrivacyPreset {
+  return value === "offline-secure" ||
+    value === "local-preferred" ||
+    value === "balanced-hybrid" ||
+    value === "best-quality" ||
+    value === "lowest-cost" ||
+    value === "manual";
+}
+
+function removeTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function extractOllamaModelNames(models: readonly { readonly name?: string; readonly model?: string }[]): readonly string[] {
+  return models
+    .map((model) => model.name ?? model.model ?? "")
+    .filter((model) => model.length > 0)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function getModelRejection(
+  model: ModelRegistryEntry,
+  provider: ModelProviderStatus | undefined,
+  privacyPreset: ModelPrivacyPreset
+): string | null {
+  if (!provider) {
+    return "Provider is not registered.";
+  }
+  if (!provider.enabled) {
+    return "Provider is disabled.";
+  }
+  if (!model.enabled) {
+    return "Model is disabled.";
+  }
+  if (privacyPreset === "offline-secure" && provider.privacyBoundary !== "local") {
+    return "Offline Secure allows local providers only.";
+  }
+  if (model.local && !model.installed) {
+    return "Local model is not installed.";
+  }
+  if (provider.health.state === "unhealthy") {
+    return "Provider health is unhealthy.";
+  }
+  return null;
+}
+
+function scoreModel(model: ModelRegistryEntry): number {
+  let score = 0;
+  if (model.local) {
+    score += 40;
+  }
+  if (model.loaded) {
+    score += 25;
+  }
+  if (model.installed) {
+    score += 20;
+  }
+  if (model.lifecycle === "pinned") {
+    score += 15;
+  }
+  if (model.lifecycle === "warm") {
+    score += 10;
+  }
+  score += Math.min(model.contextLength / 8192, 10);
+  return score;
+}
+
+function buildRouteReason(model: ModelRegistryEntry, isOverride: boolean): string {
+  const source = isOverride ? "User override selected" : "Selected by local-first score";
+  const loaded = model.loaded ? "loaded" : "not loaded";
+  return `${source}: ${model.label} (${model.lifecycle}, ${loaded}).`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isDirectOsToolRole(role: string): boolean {
+  return DIRECT_OS_TOOL_PREFIXES.some((prefix) => role.startsWith(prefix));
+}
+
+function invalidResult(errors: readonly ModelPlanValidationError[]): ModelPlanValidationResult {
+  return {
+    valid: false,
+    errors,
+    acceptedStageIds: [],
+    blockedStageIds: []
+  };
+}

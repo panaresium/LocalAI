@@ -1,0 +1,27 @@
+{
+  "name": "@hermes-local-ai/studio-desktop",
+  "version": "0.0.0-milestone16",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json && tsc -p tsconfig.renderer.json && vite build --config vite.config.ts",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:preload": "tsc -p tsconfig.preload.json",
+    "build:renderer": "tsc -p tsconfig.renderer.json && vite build --config vite.config.ts",
+    "start": "electron dist/main/main.js"
+  },
+  "dependencies": {
+    "@hermes-local-ai/contracts": "workspace:*",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "electron": "42.5.0",
+    "vite": "8.1.0"
+  }
+}

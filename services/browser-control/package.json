@@ -1,0 +1,11 @@
+{
+  "name": "@hermes-local-ai/browser-control",
+  "version": "0.0.0-milestone16",
+  "private": true,
+  "type": "module",
+  "main": "browser-vision-runner.mjs",
+  "scripts": {
+    "smoke": "node browser-smoke.mjs",
+    "vision:inspect": "node browser-vision-runner.mjs inspect --engine edge"
+  }
+}
