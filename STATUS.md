@@ -1,6 +1,93 @@
 # STATUS
 
-Last updated: 2026-06-27 09:16 Asia/Bangkok
+Last updated: 2026-06-27 09:41 Asia/Bangkok
+
+## Post-Milestone UX Pass 36 - Studio Header Context
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 09:39 Asia/Bangkok.
+
+## Studio Header Context Completed
+
+- Added a typed active workspace header summary.
+- Replaced the stale fixed milestone subtitle with context from the selected workspace.
+- The topbar now shows the active workspace label and local badge count.
+- Workspace context covers Command, Computer Control, Knowledge, Creation, Automation, Admin, and Services.
+- Count copy handles singular and plural item labels.
+- The header summary remains display-only and does not create, approve, reject, open, or mutate plans.
+- Added compact responsive topbar context styling with text overflow guards.
+- Added `scripts\test-studio-header-context.ps1`.
+- Added `scripts\run-post-milestone-ux36.ps1`.
+- Added post-milestone UX studio header context tests.
+
+## Studio Header Context Verified
+
+- Post-Milestone UX Pass 35 regression still passes.
+- Post-Milestone UX Pass 34 regression still passes through the UX35 regression chain.
+- Post-Milestone UX Pass 33 regression still passes through the UX34 regression chain.
+- Post-Milestone UX Pass 32 regression still passes through the UX33 regression chain.
+- Post-Milestone UX Pass 31 regression still passes through the UX32 regression chain.
+- Post-Milestone UX Pass 30 regression still passes through the UX31 regression chain.
+- Post-Milestone UX Pass 29 regression still passes through the UX30 regression chain.
+- Post-Milestone UX Pass 28 regression still passes through the UX29 regression chain.
+- Post-Milestone UX Pass 27 regression still passes through the UX28 regression chain.
+- Post-Milestone UX Pass 26 regression still passes through the UX27 regression chain.
+- Post-Milestone UX Pass 25 regression still passes through the UX26 regression chain.
+- Post-Milestone UX Pass 24 regression still passes through the UX25 regression chain.
+- Post-Milestone UX Pass 23 regression still passes through the UX24 regression chain.
+- Post-Milestone UX Pass 22 regression still passes through the UX23 regression chain.
+- Post-Milestone UX Pass 21 regression still passes through the UX22 regression chain.
+- Post-Milestone UX Pass 20 regression still passes through the UX21 regression chain.
+- Post-Milestone UX Pass 19 regression still passes through the UX20 regression chain.
+- Post-Milestone UX Pass 18 regression still passes through the UX19 regression chain.
+- Post-Milestone UX Pass 17 regression still passes through the UX18 regression chain.
+- Post-Milestone UX Pass 16 regression still passes through the UX17 regression chain.
+- Post-Milestone UX Pass 15 regression still passes through the UX16 regression chain.
+- Post-Milestone UX Pass 14 regression still passes through the UX15 regression chain.
+- Post-Milestone UX Pass 13 regression still passes through the UX14 regression chain.
+- Post-Milestone UX Pass 12 regression still passes through the UX13 regression chain.
+- Post-Milestone UX Pass 11 regression still passes through the UX12 regression chain.
+- Post-Milestone UX Pass 10 regression still passes through the UX11 regression chain.
+- Post-Milestone UX Pass 9 regression still passes through the UX10 regression chain.
+- Post-Milestone UX Pass 8 regression still passes through the UX9 regression chain.
+- Post-Milestone UX Pass 7 regression still passes through the UX8 regression chain.
+- Post-Milestone UX Pass 6 regression still passes through the UX7 regression chain.
+- Post-Milestone UX Pass 5 regression still passes through the UX6 regression chain.
+- Post-Milestone UX Pass 4 regression still passes through the UX5 regression chain.
+- Post-Milestone UX Pass 3 regression still passes through the UX4 regression chain.
+- Post-Milestone UX Pass 2 regression still passes through the UX3 regression chain.
+- Post-Milestone UX Pass 1 regression still passes through the UX2 regression chain.
+- Milestone 16 regression still passes through the UX1 regression chain.
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Header context is derived from local workspace and badge state only.
+- Renderer remains isolated from Node and OS privileges.
+
+## Studio Header Context Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux36.ps1
+```
+
+Result: **passed**.
+
+- Passed: Post-Milestone UX Pass 35 regression.
+- Passed: desktop build.
+- Passed: studio header context validation.
+- Passed: post-milestone UX node tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux36/run-summary.json`
+- `artifacts/post-milestone-ux36/studio-header-context.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/studio-header-context.test.mjs`
+- `scripts/test-studio-header-context.ps1`
+- `scripts/run-post-milestone-ux36.ps1`
+- `apps/studio-desktop/dist/renderer/index.html`
 
 ## Post-Milestone UX Pass 35 - Command Review Timeline
 

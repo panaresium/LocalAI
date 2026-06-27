@@ -159,6 +159,11 @@ type WorkspaceTab = {
   readonly id: WorkspaceId;
   readonly label: string;
 };
+type WorkspaceHeaderSummary = {
+  readonly label: string;
+  readonly detail: string;
+  readonly countLabel: string;
+};
 type CommandPreset = {
   readonly id: string;
   readonly label: string;
@@ -395,6 +400,16 @@ const WORKSPACES: readonly WorkspaceTab[] = [
   { id: "admin", label: "Admin" },
   { id: "services", label: "Services" }
 ];
+
+const WORKSPACE_HEADER_DETAILS: Record<WorkspaceId, string> = {
+  command: "Command-first planning with explicit approval.",
+  control: "Observe, propose, approve, and verify computer actions.",
+  knowledge: "Local knowledge, memory, and learning queues.",
+  creation: "Voice, media, and teach-mode creation tools.",
+  automation: "Dry-run automations, packaging, and restore planning.",
+  admin: "Profiles, models, chat sessions, and local configuration.",
+  services: "Local service health, logs, and supervisor state."
+};
 
 const COMMAND_PRESETS: readonly CommandPreset[] = [
   {
@@ -1885,6 +1900,18 @@ function workspaceForCommandRoute(route: CommandPlanRoute): WorkspaceId {
 
 function workspaceLabel(workspaceId: WorkspaceId): string {
   return WORKSPACES.find((workspace) => workspace.id === workspaceId)?.label ?? "Command";
+}
+
+function buildWorkspaceHeaderSummary(
+  workspaceId: WorkspaceId,
+  badges: Record<WorkspaceId, number>
+): WorkspaceHeaderSummary {
+  const count = badges[workspaceId];
+  return {
+    label: workspaceLabel(workspaceId),
+    detail: WORKSPACE_HEADER_DETAILS[workspaceId],
+    countLabel: `${count} ${count === 1 ? "item" : "items"}`
+  };
 }
 
 function commandContainsBlockedTerm(command: string, term: string): boolean {
@@ -3550,13 +3577,18 @@ export function App(): ReactElement {
     admin: (profileConfigState?.profiles.length ?? 0) + (modelFabricState?.routes.length ?? 0) + (chatState?.sessions.length ?? 0),
     services: (snapshot?.services.length ?? 0) + recentLogs.length
   };
+  const workspaceHeaderSummary = buildWorkspaceHeaderSummary(activeWorkspace, workspaceBadges);
 
   return (
     <main className={`studio-shell workspace-${activeWorkspace}`}>
       <header className="topbar">
-        <div>
+        <div className="topbar-title">
           <h1>Hermes Local AI Studio</h1>
-          <p>Milestone 16 Packaging and Hardening</p>
+          <p>{workspaceHeaderSummary.detail}</p>
+        </div>
+        <div className="topbar-context" aria-label="Active workspace summary">
+          <span>{workspaceHeaderSummary.label}</span>
+          <strong>{workspaceHeaderSummary.countLabel}</strong>
         </div>
         <div className="topbar-actions">
           <span className={`status-dot ${refreshState}`} aria-label={refreshState} />

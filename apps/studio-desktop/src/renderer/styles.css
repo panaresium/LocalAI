@@ -77,6 +77,10 @@ textarea {
   border-bottom: 1px solid #d8dee4;
 }
 
+.topbar-title {
+  min-width: 0;
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 24px;
@@ -86,6 +90,35 @@ textarea {
 .topbar p {
   margin: 4px 0 0;
   color: #66707b;
+}
+
+.topbar-context {
+  display: grid;
+  gap: 2px;
+  min-width: 138px;
+  margin-left: auto;
+  border: 1px solid #d8dee4;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fbfcfd;
+}
+
+.topbar-context span,
+.topbar-context strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-context span {
+  color: #66707b;
+  font-size: 12px;
+}
+
+.topbar-context strong {
+  color: #09111c;
+  font-size: 14px;
 }
 
 .topbar-actions,
