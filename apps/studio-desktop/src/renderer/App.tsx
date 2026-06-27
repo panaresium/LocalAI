@@ -6849,10 +6849,10 @@ export function App(): ReactElement {
               </ol>
               <button
                 type="button"
-                disabled={!chatCommandPlanCue.canPrepare || isChatRunning}
+                disabled={Boolean(preparedChatPlan) || !chatCommandPlanCue.canPrepare || isChatRunning}
                 onClick={() => void prepareChatCommandPlan(chatCommandPlanCue.command)}
               >
-                Prepare Plan
+                {preparedChatPlan ? "Plan Prepared" : "Prepare Plan"}
               </button>
             </section>
           ) : null}

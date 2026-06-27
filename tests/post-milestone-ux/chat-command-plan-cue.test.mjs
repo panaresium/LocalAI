@@ -53,7 +53,7 @@ test("Chat sidebar renders the plan cue without adding composer configuration", 
   assert.match(chatBlock, /chatCommandPlanCue\.intentLabel/);
   assert.match(chatBlock, /Opens \{chatCommandPlanCue\.workspaceLabel\} for approval/);
   assert.match(chatBlock, /onClick=\{\(\) => void prepareChatCommandPlan\(chatCommandPlanCue\.command\)\}/);
-  assert.match(chatBlock, /disabled=\{!chatCommandPlanCue\.canPrepare \|\| isChatRunning\}/);
+  assert.match(chatBlock, /disabled=\{Boolean\(preparedChatPlan\) \|\| !chatCommandPlanCue\.canPrepare \|\| isChatRunning\}/);
   assert.doesNotMatch(composerBlock, /<select|Profile|Session|Attach|chat-toolbar/);
 });
 

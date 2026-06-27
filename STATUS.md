@@ -1,6 +1,58 @@
 # STATUS
 
-Last updated: 2026-06-27 16:50 Asia/Bangkok
+Last updated: 2026-06-27 17:00 Asia/Bangkok
+
+## Post-Milestone UX Pass 47 - Chat Duplicate Plan Guard
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 17:00 Asia/Bangkok.
+
+## Chat Duplicate Plan Guard Completed
+
+- Disabled duplicate Chat plan preparation when the current draft already has a matching Command Center plan.
+- Changed the lower Chat cue action from `Prepare Plan` to `Plan Prepared` for matching prepared plans.
+- Kept `Review Plan` as the explicit route back to the existing Command Center plan.
+- Preserved the existing approval and execution gates; no approval, execution, shell access, or OS handoff occurs from Chat.
+- Kept the Chat composer simple with no extra configuration controls.
+- Updated the older Chat command-plan cue regression test to include the duplicate-plan guard.
+- Added `scripts\test-chat-plan-duplicate-guard.ps1`.
+- Added `scripts\run-post-milestone-ux47.ps1`.
+- Added post-milestone UX chat duplicate-plan guard tests.
+
+## Chat Duplicate Plan Guard Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat duplicate-plan guard validation passes.
+- Full post-milestone UX node regression passes with 197 tests.
+- The Chat cue disables duplicate `Prepare Plan` when a matching plan exists.
+- The prepared plan review path remains explicit and does not create, approve, or execute a new plan.
+- No silent execution, approval bypass, shell access, or new OS privilege path was added.
+
+## Chat Duplicate Plan Guard Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux47.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat duplicate-plan guard validation.
+- Passed: post-milestone UX node regression with 197 tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux47/run-summary.json`
+- `artifacts/post-milestone-ux47/chat-plan-duplicate-guard.json`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `tests/post-milestone-ux/chat-command-plan-cue.test.mjs`
+- `tests/post-milestone-ux/chat-plan-duplicate-guard.test.mjs`
+- `scripts/test-chat-plan-duplicate-guard.ps1`
+- `scripts/run-post-milestone-ux47.ps1`
+- `package.json`
 
 ## Post-Milestone UX Pass 46 - Chat Prepared Plan Status
 
