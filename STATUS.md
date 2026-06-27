@@ -1,6 +1,85 @@
 # STATUS
 
-Last updated: 2026-06-27 22:47 Asia/Bangkok
+Last updated: 2026-06-28 00:14 Asia/Bangkok
+
+## Post-Milestone UX Pass 51 - Under-20B Catalog and Thai Speech Models
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-28 at 00:14 Asia/Bangkok.
+
+## Under-20B Catalog and Thai Speech Models Completed
+
+- Added marketplace metadata for:
+  - ranked sub-20B local models.
+  - parameter count.
+  - runtime kind.
+  - download support.
+  - source-only download state.
+- Added a local-artifact provider type for manually installed local models that are not Ollama pulls.
+- Added exactly ten ranked under-20B Ollama marketplace models:
+  - `qwen3:14b`
+  - `deepseek-r1:14b`
+  - `phi4:14b`
+  - `gemma3:12b`
+  - `qwen2.5-coder:14b`
+  - `qwen2.5:14b`
+  - `granite3.3:8b`
+  - `llama3:8b`
+  - `qwen3:8b`
+  - `deepseek-r1:8b`
+- Removed the previous 27B optional catalog entry from the under-20B local marketplace scope.
+- Added a Voice Assistant task profile for speech transcription, Thai-capable ASR, TTS, summarization, and verification routing.
+- Added Thai-capable local runtime catalog entries:
+  - `openai/whisper-large-v3-turbo`
+  - `airesearch/wav2vec2-large-xlsr-53-th`
+  - `facebook/mms-tts-tha`
+- Kept Thai ASR/TTS entries source-only because they require a Hugging Face/Transformers, faster-whisper, ONNX, or TTS runtime adapter rather than Ollama `/api/pull`.
+- Disabled automatic Download for source-only entries in the renderer.
+- Updated Chat task classification so voice, speech, ASR, TTS, and Thai transcription prompts route to the Voice Assistant model team.
+- Updated `ai_model_download_manifest.json` and `AI_Model_Downloads.md`.
+- Added `scripts\test-model-marketplace-speech-catalog.ps1`.
+- Added `scripts\run-post-milestone-ux51.ps1`.
+- Added post-milestone UX catalog and Thai speech tests.
+
+## Under-20B Catalog and Thai Speech Models Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused under-20B catalog and Thai speech validation passes.
+- Full post-milestone UX node regression passes with 218 tests.
+- Ollama auto-download support remains restricted to local Ollama models.
+- Source-only Thai speech entries cannot trigger Ollama pull calls.
+- The renderer still has no Node, shell, process, or require exposure.
+- No external AI call, credential handling path, automatic speech runtime install, approval bypass, or hidden background model download was added.
+
+## Under-20B Catalog and Thai Speech Models Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux51.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: model marketplace speech catalog validation.
+- Passed: post-milestone UX node regression with 218 tests.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux51/run-summary.json`
+- `artifacts/post-milestone-ux51/model-marketplace-speech-catalog.json`
+- `packages/contracts/src/model-fabric.ts`
+- `apps/studio-desktop/src/main/model-fabric-manager.ts`
+- `apps/studio-desktop/src/main/main.ts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `tests/post-milestone-ux/model-marketplace-speech-catalog.test.mjs`
+- `scripts/test-model-marketplace-speech-catalog.ps1`
+- `scripts/run-post-milestone-ux51.ps1`
+- `ai_model_download_manifest.json`
+- `AI_Model_Downloads.md`
+- `package.json`
 
 ## Post-Milestone UX Pass 50 - Model Marketplace Downloads and Task Routes
 

@@ -664,7 +664,8 @@ function isModelTaskProfileId(value: unknown): value is ChatModelTeam["taskProfi
     value === "knowledge-research" ||
     value === "code-change" ||
     value === "creative-media" ||
-    value === "conversation";
+    value === "conversation" ||
+    value === "voice-assistant";
 }
 
 function isModelLifecycleClass(value: unknown): value is NonNullable<ChatModelAssignment["lifecycle"]> {

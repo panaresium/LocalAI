@@ -991,6 +991,9 @@ function selectChatTaskProfileIdForPrompt(prompt: string): ModelTaskProfileId {
   if (/\b(image|illustration|picture|artwork|logo|icon|mockup|diagram|flow|workflow|bcp|video)\b/u.test(text)) {
     return "creative-media";
   }
+  if (/\b(voice|speech|audio|microphone|transcri(be|ption)|asr|tts|text to speech|thai voice|thai speech|thai transcription|thai language)\b/u.test(text)) {
+    return "voice-assistant";
+  }
   if (/\b(code|script|typescript|javascript|python|debug|bug|fix|implement|refactor|test|build)\b/u.test(text)) {
     return "code-change";
   }
@@ -6610,17 +6613,22 @@ export function App(): ReactElement {
                     <span>{entry.downloadState}</span>
                   </div>
                   <span>{entry.description}</span>
-                  <small>{entry.model} · {entry.lifecycle} · {entry.contextLength.toLocaleString()} ctx</small>
+                  <small>
+                    {entry.marketplaceRank ? `#${entry.marketplaceRank} under 20B · ` : ""}
+                    {entry.parameterCountB ? `${entry.parameterCountB}B · ` : ""}
+                    {entry.model} · {entry.lifecycle} · {entry.runtimeKind}
+                  </small>
+                  <small>{entry.contextLength > 0 ? `${entry.contextLength.toLocaleString()} ctx` : "audio runtime"} · {entry.installCommand}</small>
                   <small>{entry.capabilities.join(", ")}</small>
                   <small>{taskRecommended ? "Recommended for selected task" : "Catalog model"} · {roleCompatible ? "role compatible" : "different specialty"}</small>
-                  <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Ollama catalog</a>
+                  <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Model source</a>
                   <div className="marketplace-actions">
                     <button
                       type="button"
-                      disabled={entry.installed}
+                      disabled={entry.installed || !entry.downloadSupported}
                       onClick={() => void downloadMarketplaceModel(entry.id)}
                     >
-                      Download
+                      {entry.downloadSupported ? "Download" : "Source Only"}
                     </button>
                     <button
                       type="button"

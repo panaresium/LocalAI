@@ -8,6 +8,7 @@ import type {
   ModelFabricState,
   ModelLifecycleRequest,
   ModelMemoryRecommendation,
+  ModelMarketplaceDownloadState,
   ModelMarketplaceEntry,
   ModelPlanValidationError,
   ModelPlanValidationResult,
@@ -45,8 +46,12 @@ interface SeedModel {
   readonly lifecycle: ModelRegistryEntry["lifecycle"];
   readonly contextLength: number;
   readonly capabilities: readonly string[];
+  readonly parameterCountB: number | null;
+  readonly marketplaceRank: number | null;
   readonly recommendedTaskProfileIds: readonly ModelTaskProfileId[];
   readonly sourceUrl: string;
+  readonly runtimeKind: ModelMarketplaceEntry["runtimeKind"];
+  readonly downloadSupported: boolean;
   readonly preloadRecommended: boolean;
   readonly enabled: boolean;
   readonly local: boolean;
@@ -125,6 +130,7 @@ const MODEL_FABRIC_ROLE_ALIASES: readonly ModelRoleAlias[] = [
   "translation.fast",
   "translation.quality"
 ];
+const DEFAULT_MANUAL_LOCAL_ENDPOINT = "manual local runtime";
 const ROLE_SET = new Set<string>(MODEL_FABRIC_ROLE_ALIASES);
 const DIRECT_OS_TOOL_PREFIXES = [
   "app.",
@@ -188,6 +194,16 @@ const MODEL_TASK_PROFILES: readonly ModelTaskProfile[] = [
     loadPolicy: "Keep the fast orchestrator pinned and warm deeper specialists only for complex prompts.",
     unloadPolicy: "Unload deep specialists after the conversation turn when memory pressure is constrained.",
     confidenceFloor: 0.9
+  },
+  {
+    id: "voice-assistant",
+    label: "Voice assistant",
+    description: "Route Thai-capable transcription, speech synthesis, summarization, and verification models.",
+    orchestratorRole: "orchestrator.primary",
+    specialistRoles: ["speech.asr.fast", "speech.asr.accurate", "speech.tts.fast", "agent.summarize", "agent.verify"],
+    loadPolicy: "Keep the text orchestrator warm; load ASR/TTS models only during voice capture or speech output.",
+    unloadPolicy: "Unload ASR/TTS specialists after transcription, synthesis, and verification complete.",
+    confidenceFloor: 0.9
   }
 ];
 
@@ -197,6 +213,15 @@ const PROVIDERS: readonly SeedProvider[] = [
     label: "Ollama Local",
     kind: "ollama",
     endpoint: DEFAULT_OLLAMA_BASE_URL,
+    enabled: true,
+    privacyBoundary: "local",
+    requiresApiKey: false
+  },
+  {
+    id: "huggingface-local",
+    label: "Hugging Face Local Runtime",
+    kind: "local-artifact",
+    endpoint: DEFAULT_MANUAL_LOCAL_ENDPOINT,
     enabled: true,
     privacyBoundary: "local",
     requiresApiKey: false
@@ -249,8 +274,12 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "pinned",
     contextLength: 65536,
     capabilities: ["text", "structured-output", "local"],
+    parameterCountB: 4,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["conversation", "computer-control"],
     sourceUrl: "https://ollama.com/library/qwen3.5:4b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: true,
     enabled: true,
     local: true,
@@ -265,8 +294,12 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "warm",
     contextLength: 65536,
     capabilities: ["text", "code", "structured-output", "local"],
+    parameterCountB: 9,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["conversation", "code-change", "knowledge-research"],
     sourceUrl: "https://ollama.com/library/qwen3.5",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: true,
     enabled: true,
     local: true,
@@ -281,8 +314,12 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "on-demand",
     contextLength: 32768,
     capabilities: ["vision", "image", "local"],
+    parameterCountB: 4,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["computer-control", "creative-media", "knowledge-research"],
     sourceUrl: "https://ollama.com/library/qwen3-vl",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: false,
     enabled: true,
     local: true,
@@ -297,8 +334,12 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "batch",
     contextLength: 8192,
     capabilities: ["embedding", "retrieval", "local"],
+    parameterCountB: 0.6,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["knowledge-research"],
     sourceUrl: "https://ollama.com/library/qwen3-embedding",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: false,
     enabled: true,
     local: true,
@@ -313,8 +354,12 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "on-demand",
     contextLength: 32768,
     capabilities: ["text", "structured-output", "low-resource", "local"],
+    parameterCountB: 2,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["conversation", "computer-control"],
     sourceUrl: "https://ollama.com/library/qwen3.5",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: false,
     enabled: true,
     local: true,
@@ -329,8 +374,12 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "on-demand",
     contextLength: 32768,
     capabilities: ["vision", "image", "document", "local"],
+    parameterCountB: 8,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["computer-control", "creative-media", "knowledge-research"],
     sourceUrl: "https://ollama.com/library/qwen3-vl:8b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: false,
     enabled: true,
     local: true,
@@ -345,28 +394,276 @@ const SEED_MODELS: readonly SeedModel[] = [
     lifecycle: "on-demand",
     contextLength: 32768,
     capabilities: ["text", "low-resource", "local"],
+    parameterCountB: 0.6,
+    marketplaceRank: null,
     recommendedTaskProfileIds: ["conversation"],
     sourceUrl: "https://ollama.com/library/qwen3:0.6b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: false,
     enabled: true,
     local: true,
     notes: "Optional ultra-small local text model for very constrained systems."
   },
   {
-    id: "ollama:qwen3.6:27b",
+    id: "ollama:qwen3:14b",
     providerId: "ollama",
-    model: "qwen3.6:27b",
-    label: "Qwen3.6 27B",
-    roles: ["agent.deep", "agent.code", "agent.verify", "translation.quality"],
-    lifecycle: "exclusive",
+    model: "qwen3:14b",
+    label: "Qwen3 14B",
+    roles: ["orchestrator.primary", "agent.general", "agent.deep", "agent.verify", "translation.quality"],
+    lifecycle: "warm",
     contextLength: 65536,
-    capabilities: ["text", "code", "reasoning", "local"],
-    recommendedTaskProfileIds: ["code-change", "knowledge-research"],
-    sourceUrl: "https://ollama.com/library/qwen3.6",
+    capabilities: ["text", "reasoning", "structured-output", "local", "featured-under-20b"],
+    parameterCountB: 14,
+    marketplaceRank: 1,
+    recommendedTaskProfileIds: ["conversation", "knowledge-research", "code-change"],
+    sourceUrl: "https://ollama.com/library/qwen3:14b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: true,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B reasoning and general-purpose local model."
+  },
+  {
+    id: "ollama:deepseek-r1:14b",
+    providerId: "ollama",
+    model: "deepseek-r1:14b",
+    label: "DeepSeek R1 14B",
+    roles: ["agent.deep", "agent.verify", "agent.summarize"],
+    lifecycle: "warm",
+    contextLength: 32768,
+    capabilities: ["text", "reasoning", "verification", "local", "featured-under-20b"],
+    parameterCountB: 14,
+    marketplaceRank: 2,
+    recommendedTaskProfileIds: ["knowledge-research", "code-change", "conversation"],
+    sourceUrl: "https://ollama.com/library/deepseek-r1:14b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: true,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B reasoning specialist."
+  },
+  {
+    id: "ollama:phi4:14b",
+    providerId: "ollama",
+    model: "phi4:14b",
+    label: "Phi-4 14B",
+    roles: ["agent.general", "agent.deep", "agent.verify", "agent.summarize"],
+    lifecycle: "warm",
+    contextLength: 16384,
+    capabilities: ["text", "reasoning", "math", "local", "featured-under-20b"],
+    parameterCountB: 14,
+    marketplaceRank: 3,
+    recommendedTaskProfileIds: ["conversation", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/phi4:14b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: true,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B general reasoning model."
+  },
+  {
+    id: "ollama:gemma3:12b",
+    providerId: "ollama",
+    model: "gemma3:12b",
+    label: "Gemma 3 12B",
+    roles: ["agent.general", "agent.summarize", "vision.general", "vision.document", "image.verify"],
+    lifecycle: "warm",
+    contextLength: 128000,
+    capabilities: ["text", "vision", "document", "local", "featured-under-20b"],
+    parameterCountB: 12,
+    marketplaceRank: 4,
+    recommendedTaskProfileIds: ["conversation", "knowledge-research", "creative-media"],
+    sourceUrl: "https://ollama.com/library/gemma3:12b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: true,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B multimodal local model."
+  },
+  {
+    id: "ollama:qwen2.5-coder:14b",
+    providerId: "ollama",
+    model: "qwen2.5-coder:14b",
+    label: "Qwen2.5 Coder 14B",
+    roles: ["agent.code", "agent.verify", "agent.summarize"],
+    lifecycle: "warm",
+    contextLength: 32768,
+    capabilities: ["text", "code", "structured-output", "local", "featured-under-20b"],
+    parameterCountB: 14,
+    marketplaceRank: 5,
+    recommendedTaskProfileIds: ["code-change"],
+    sourceUrl: "https://ollama.com/library/qwen2.5-coder:14b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: true,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B coding specialist."
+  },
+  {
+    id: "ollama:qwen2.5:14b",
+    providerId: "ollama",
+    model: "qwen2.5:14b",
+    label: "Qwen2.5 14B",
+    roles: ["agent.general", "agent.deep", "agent.summarize", "translation.quality"],
+    lifecycle: "warm",
+    contextLength: 32768,
+    capabilities: ["text", "multilingual", "structured-output", "local", "featured-under-20b"],
+    parameterCountB: 14,
+    marketplaceRank: 6,
+    recommendedTaskProfileIds: ["conversation", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen2.5:14b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: true,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B multilingual general-purpose model."
+  },
+  {
+    id: "ollama:granite3.3:8b",
+    providerId: "ollama",
+    model: "granite3.3:8b",
+    label: "Granite 3.3 8B",
+    roles: ["agent.general", "agent.code", "agent.summarize", "agent.verify"],
+    lifecycle: "on-demand",
+    contextLength: 128000,
+    capabilities: ["text", "code", "enterprise", "local", "featured-under-20b"],
+    parameterCountB: 8,
+    marketplaceRank: 7,
+    recommendedTaskProfileIds: ["code-change", "knowledge-research", "conversation"],
+    sourceUrl: "https://ollama.com/library/granite3.3:8b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
     preloadRecommended: false,
     enabled: true,
     local: true,
-    notes: "Optional large local specialist. Download only when hardware memory is sufficient."
+    notes: "Featured under-20B enterprise and code-capable model."
+  },
+  {
+    id: "ollama:llama3:8b",
+    providerId: "ollama",
+    model: "llama3:8b",
+    label: "Llama 3 8B",
+    roles: ["agent.general", "agent.summarize", "agent.verify"],
+    lifecycle: "on-demand",
+    contextLength: 8192,
+    capabilities: ["text", "general", "local", "featured-under-20b"],
+    parameterCountB: 8,
+    marketplaceRank: 8,
+    recommendedTaskProfileIds: ["conversation", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/llama3:8b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B widely used general chat model."
+  },
+  {
+    id: "ollama:qwen3:8b",
+    providerId: "ollama",
+    model: "qwen3:8b",
+    label: "Qwen3 8B",
+    roles: ["agent.general", "agent.deep", "agent.verify", "translation.quality"],
+    lifecycle: "on-demand",
+    contextLength: 40960,
+    capabilities: ["text", "reasoning", "multilingual", "local", "featured-under-20b"],
+    parameterCountB: 8,
+    marketplaceRank: 9,
+    recommendedTaskProfileIds: ["conversation", "knowledge-research"],
+    sourceUrl: "https://ollama.com/library/qwen3:8b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B balanced reasoning and multilingual model."
+  },
+  {
+    id: "ollama:deepseek-r1:8b",
+    providerId: "ollama",
+    model: "deepseek-r1:8b",
+    label: "DeepSeek R1 8B",
+    roles: ["agent.deep", "agent.verify", "agent.summarize"],
+    lifecycle: "on-demand",
+    contextLength: 32768,
+    capabilities: ["text", "reasoning", "local", "featured-under-20b"],
+    parameterCountB: 8,
+    marketplaceRank: 10,
+    recommendedTaskProfileIds: ["knowledge-research", "conversation"],
+    sourceUrl: "https://ollama.com/library/deepseek-r1:8b",
+    runtimeKind: "ollama",
+    downloadSupported: true,
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Featured under-20B compact reasoning model."
+  },
+  {
+    id: "hf:openai:whisper-large-v3-turbo",
+    providerId: "huggingface-local",
+    model: "openai/whisper-large-v3-turbo",
+    label: "Whisper Large v3 Turbo",
+    roles: ["speech.asr.fast", "speech.asr.accurate"],
+    lifecycle: "on-demand",
+    contextLength: 0,
+    capabilities: ["asr", "transcription", "thai", "multilingual", "local-runtime"],
+    parameterCountB: null,
+    marketplaceRank: null,
+    recommendedTaskProfileIds: ["voice-assistant"],
+    sourceUrl: "https://huggingface.co/openai/whisper-large-v3-turbo",
+    runtimeKind: "manual-local",
+    downloadSupported: false,
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Thai-capable local transcription candidate. Requires a Transformers, faster-whisper, or equivalent ASR runtime adapter."
+  },
+  {
+    id: "hf:airesearch:wav2vec2-large-xlsr-53-th",
+    providerId: "huggingface-local",
+    model: "airesearch/wav2vec2-large-xlsr-53-th",
+    label: "Thai Wav2Vec2 XLSR",
+    roles: ["speech.asr.accurate"],
+    lifecycle: "on-demand",
+    contextLength: 0,
+    capabilities: ["asr", "transcription", "thai", "local-runtime"],
+    parameterCountB: null,
+    marketplaceRank: null,
+    recommendedTaskProfileIds: ["voice-assistant"],
+    sourceUrl: "https://huggingface.co/airesearch/wav2vec2-large-xlsr-53-th",
+    runtimeKind: "manual-local",
+    downloadSupported: false,
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Thai-specific speech recognition candidate. Requires a Transformers or ONNX ASR runtime adapter."
+  },
+  {
+    id: "hf:facebook:mms-tts-tha",
+    providerId: "huggingface-local",
+    model: "facebook/mms-tts-tha",
+    label: "MMS Thai TTS",
+    roles: ["speech.tts.fast", "speech.tts.quality"],
+    lifecycle: "on-demand",
+    contextLength: 0,
+    capabilities: ["tts", "speech-synthesis", "thai", "local-runtime"],
+    parameterCountB: null,
+    marketplaceRank: null,
+    recommendedTaskProfileIds: ["voice-assistant"],
+    sourceUrl: "https://huggingface.co/facebook/mms-tts-tha",
+    runtimeKind: "manual-local",
+    downloadSupported: false,
+    preloadRecommended: false,
+    enabled: true,
+    local: true,
+    notes: "Thai text-to-speech candidate. Requires a local TTS runtime adapter."
   }
 ];
 
@@ -438,8 +735,8 @@ export class ModelFabricManager {
     if (!entry) {
       throw new Error("Unknown marketplace model.");
     }
-    if (entry.providerId !== "ollama" || !entry.local) {
-      throw new Error("Only local Ollama marketplace downloads are supported in this milestone.");
+    if (!entry.downloadSupported || entry.providerId !== "ollama" || !entry.local) {
+      throw new Error("Automatic downloads currently support local Ollama models only.");
     }
 
     const response = await this.postOllama<OllamaPullResponse>("/api/pull", {
@@ -745,11 +1042,19 @@ export class ModelFabricManager {
       enabled: provider.enabled,
       privacyBoundary: provider.privacyBoundary,
       requiresApiKey: provider.requiresApiKey,
-      health: provider.id === "ollama" ? ollamaHealth : {
-        state: "unknown",
-        detail: "Adapter is registered but disabled until privacy and cost policy is configured.",
-        latencyMs: null
-      }
+      health: provider.id === "ollama"
+        ? ollamaHealth
+        : provider.kind === "local-artifact"
+          ? {
+              state: "unknown",
+              detail: "Manual local runtime model source is registered; install and adapter detection are not automated yet.",
+              latencyMs: null
+            }
+          : {
+              state: "unknown",
+              detail: "Adapter is registered but disabled until privacy and cost policy is configured.",
+              latencyMs: null
+            }
     }));
   }
 
@@ -769,6 +1074,13 @@ export class ModelFabricManager {
       const model = modelById.get(seed.id);
       const installed = model?.installed ?? false;
       const loaded = model?.loaded ?? false;
+      const downloadState: ModelMarketplaceDownloadState = !seed.downloadSupported
+        ? "source-only"
+        : loaded
+          ? "loaded"
+          : installed
+            ? "installed"
+            : "available";
       return {
         id: marketplaceEntryId(seed.id),
         modelId: seed.id,
@@ -780,15 +1092,30 @@ export class ModelFabricManager {
         lifecycle: seed.lifecycle,
         contextLength: seed.contextLength,
         capabilities: seed.capabilities,
+        parameterCountB: seed.parameterCountB,
+        marketplaceRank: seed.marketplaceRank,
         recommendedTaskProfileIds: seed.recommendedTaskProfileIds,
         sourceUrl: seed.sourceUrl,
-        installCommand: `ollama pull ${seed.model}`,
+        installCommand: buildInstallCommand(seed),
+        runtimeKind: seed.runtimeKind,
+        downloadSupported: seed.downloadSupported,
         preloadRecommended: seed.preloadRecommended,
         installed,
         loaded,
-        downloadState: loaded ? "loaded" : installed ? "installed" : "available",
+        downloadState,
         notes: seed.notes
       };
+    }).sort((left, right) => {
+      if (left.marketplaceRank !== null && right.marketplaceRank !== null) {
+        return left.marketplaceRank - right.marketplaceRank;
+      }
+      if (left.marketplaceRank !== null) {
+        return -1;
+      }
+      if (right.marketplaceRank !== null) {
+        return 1;
+      }
+      return left.label.localeCompare(right.label);
     });
   }
 
@@ -899,7 +1226,8 @@ export function isModelTaskProfileId(value: unknown): value is ModelTaskProfileI
     value === "knowledge-research" ||
     value === "code-change" ||
     value === "creative-media" ||
-    value === "conversation";
+    value === "conversation" ||
+    value === "voice-assistant";
 }
 
 function removeTrailingSlash(value: string): string {
@@ -908,6 +1236,13 @@ function removeTrailingSlash(value: string): string {
 
 function marketplaceEntryId(modelId: string): string {
   return `market:${modelId}`;
+}
+
+function buildInstallCommand(model: SeedModel): string {
+  if (model.runtimeKind === "ollama") {
+    return `ollama pull ${model.model}`;
+  }
+  return `huggingface-cli download ${model.model}`;
 }
 
 function uniqueModelRoles(roles: readonly ModelRoleAlias[]): readonly ModelRoleAlias[] {

@@ -17,11 +17,29 @@ ollama pull qwen3-embedding:0.6b
 ollama pull qwen3.5:2b
 ollama pull qwen3-vl:8b
 ollama pull qwen3:0.6b
-ollama pull qwen3.6
+ollama pull qwen3:14b
+```
+
+## Featured under-20B Ollama models
+
+```powershell
+ollama pull qwen3:14b
+ollama pull deepseek-r1:14b
+ollama pull phi4:14b
+ollama pull gemma3:12b
+ollama pull qwen2.5-coder:14b
+ollama pull qwen2.5:14b
+ollama pull granite3.3:8b
+ollama pull llama3:8b
+ollama pull qwen3:8b
+ollama pull deepseek-r1:8b
 ```
 
 ## Local non-Ollama engines
 
+- Whisper Large v3 Turbo: https://huggingface.co/openai/whisper-large-v3-turbo
+- Thai Wav2Vec2 XLSR: https://huggingface.co/airesearch/wav2vec2-large-xlsr-53-th
+- MMS Thai TTS: https://huggingface.co/facebook/mms-tts-tha
 - Qwen3-Reranker-0.6B: https://huggingface.co/Qwen/Qwen3-Reranker-0.6B
 - Qwen3-ASR-0.6B: https://huggingface.co/Qwen/Qwen3-ASR-0.6B
 - Qwen3-ASR-1.7B: https://huggingface.co/Qwen/Qwen3-ASR-1.7B

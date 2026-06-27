@@ -1,19 +1,21 @@
 import type { ModelRoleAlias } from "./model-roles.js";
 
-export type ModelProviderKind = "ollama" | "external-api";
+export type ModelProviderKind = "ollama" | "local-artifact" | "external-api";
 export type ModelPrivacyBoundary = "local" | "external";
 export type ModelHealthState = "healthy" | "degraded" | "unhealthy" | "unknown";
 export type ModelLifecycleClass = "pinned" | "warm" | "on-demand" | "batch" | "exclusive";
 export type ModelPrivacyPreset = "offline-secure" | "local-preferred" | "balanced-hybrid" | "best-quality" | "lowest-cost" | "manual";
 export type ModelLifecycleAction = "load" | "unload";
-export type ModelMarketplaceDownloadState = "available" | "installed" | "loaded";
+export type ModelMarketplaceDownloadState = "available" | "installed" | "loaded" | "source-only";
+export type ModelRuntimeKind = "ollama" | "manual-local";
 export type ModelBenchmarkStatus = "passed" | "failed";
 export type ModelTaskProfileId =
   | "computer-control"
   | "knowledge-research"
   | "code-change"
   | "creative-media"
-  | "conversation";
+  | "conversation"
+  | "voice-assistant";
 export type ModelMemoryRecommendationStatus = "ok" | "constrained" | "critical";
 
 export interface ModelProviderHealth {
@@ -60,9 +62,13 @@ export interface ModelMarketplaceEntry {
   readonly lifecycle: ModelLifecycleClass;
   readonly contextLength: number;
   readonly capabilities: readonly string[];
+  readonly parameterCountB: number | null;
+  readonly marketplaceRank: number | null;
   readonly recommendedTaskProfileIds: readonly ModelTaskProfileId[];
   readonly sourceUrl: string;
   readonly installCommand: string;
+  readonly runtimeKind: ModelRuntimeKind;
+  readonly downloadSupported: boolean;
   readonly preloadRecommended: boolean;
   readonly installed: boolean;
   readonly loaded: boolean;
