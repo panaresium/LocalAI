@@ -1,6 +1,60 @@
 # STATUS
 
-Last updated: 2026-06-27 12:38 Asia/Bangkok
+Last updated: 2026-06-27 13:03 Asia/Bangkok
+
+## Post-Milestone UX Pass 40 - Chat Thinking And Images
+
+Status: **complete**.
+
+Post-milestone UX validation passed from `D:\LocalAI` on 2026-06-27 at 13:03 Asia/Bangkok.
+
+## Chat Thinking And Images Completed
+
+- Added chat contracts for visible process summaries, thinking steps, diagrams, response metrics, and generated image artifacts.
+- Added response metrics with estimated output tokens, elapsed time, and token/s.
+- Added a user-visible AI process block inside assistant chat messages.
+- Added a compact step-by-step diagram for how the reply was produced.
+- Kept private chain-of-thought hidden; the UI shows a safe process summary only.
+- Added local chat image artifact generation for image, illustration, artwork, logo, icon, mockup, draw, and sketch prompts.
+- Generated chat images now render directly inside the Chat page through file preview URLs.
+- Blocked sensitive image prompts from artifact generation.
+- Added `scripts\test-chat-thinking-images.ps1`.
+- Added `scripts\run-post-milestone-ux40.ps1`.
+- Added post-milestone UX chat thinking and image tests.
+
+## Chat Thinking And Images Verified
+
+- Desktop main, preload, and renderer builds pass strict TypeScript checks.
+- Focused chat thinking and images validation passes.
+- Full post-milestone UX node regression passes with 169 tests.
+- Generated image previews are local SVG artifacts; no external generation call is made.
+- Chat remains a simple type-and-send page with read-only process and image output under assistant replies.
+
+## Chat Thinking And Images Acceptance Test Results
+
+Command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-post-milestone-ux40.ps1
+```
+
+Result: **passed**.
+
+- Passed: desktop build.
+- Passed: chat thinking and images validation.
+- Passed: post-milestone UX node regression.
+
+Primary evidence:
+
+- `artifacts/post-milestone-ux40/run-summary.json`
+- `artifacts/post-milestone-ux40/chat-thinking-images.json`
+- `packages/contracts/src/chat.ts`
+- `apps/studio-desktop/src/main/chat-manager.ts`
+- `apps/studio-desktop/src/renderer/App.tsx`
+- `apps/studio-desktop/src/renderer/styles.css`
+- `tests/post-milestone-ux/chat-thinking-images.test.mjs`
+- `scripts/test-chat-thinking-images.ps1`
+- `scripts/run-post-milestone-ux40.ps1`
 
 ## Post-Milestone UX Pass 39 - Simple Chat Workspace
 

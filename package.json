@@ -111,7 +111,9 @@
     "test:instruction-window-execution": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-instruction-window-execution.ps1",
     "test:post-milestone-ux38": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux38.ps1",
     "test:simple-chat-workspace": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-simple-chat-workspace.ps1",
-    "test:post-milestone-ux39": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux39.ps1"
+    "test:post-milestone-ux39": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux39.ps1",
+    "test:chat-thinking-images": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-chat-thinking-images.ps1",
+    "test:post-milestone-ux40": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-post-milestone-ux40.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

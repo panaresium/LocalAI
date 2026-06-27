@@ -1,18 +1,23 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type {
   ChatAttachment,
   ChatAttachmentKind,
   ChatEvent,
+  ChatGeneratedImage,
   ChatMessage,
   ChatProfileSummary,
   ChatRunStatus,
   ChatSessionSummary,
   ChatState,
+  ChatThinkingStep,
+  ChatThinkingStepState,
+  ChatThinkingTrace,
   ChatTimelineEntry,
   SendChatMessageRequest
 } from "@hermes-local-ai/contracts";
@@ -30,6 +35,9 @@ interface ActiveRun {
   readonly runId: string;
   readonly child: ChildProcessWithoutNullStreams;
   readonly assistantMessageId: string;
+  readonly prompt: string;
+  readonly startedAt: string;
+  readonly startedAtMs: number;
   rawOutput: string;
   rawError: string;
   lastContent: string;
@@ -55,6 +63,10 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_PROMPT_CHARS = 12000;
 const MAX_PROFILE_CHARS = 6000;
 const MAX_ATTACHMENTS = 8;
+const CHAT_IMAGE_WIDTH = 960;
+const CHAT_IMAGE_HEIGHT = 540;
+const IMAGE_PROMPT_PATTERN = /\b(image|illustration|picture|artwork|logo|icon|mockup|generate art|draw|sketch)\b/iu;
+const IMAGE_PROMPT_SENSITIVE_PATTERN = /\b(password|passcode|mfa|otp|payment|credit\s+card|api\s+key|secret|token|credential)\b/iu;
 
 export class HermesChatManager {
   private readonly root: string;
@@ -140,6 +152,8 @@ export class HermesChatManager {
     }
 
     const runId = randomUUID();
+    const startedAtMs = Date.now();
+    const startedAt = new Date(startedAtMs).toISOString();
     const selectedAttachments = this.resolveAttachments(request.attachmentIds);
     const userMessage = this.createMessage("user", prompt, selectedAttachments, request.sessionId ?? undefined);
     const hermesPrompt = await this.buildPromptForHermes(prompt, request.profileId, selectedAttachments);
@@ -166,6 +180,9 @@ export class HermesChatManager {
       runId,
       child,
       assistantMessageId: randomUUID(),
+      prompt,
+      startedAt,
+      startedAtMs,
       rawOutput: "",
       rawError: "",
       lastContent: "",
@@ -276,14 +293,18 @@ export class HermesChatManager {
     role: ChatMessage["role"],
     content: string,
     attachments: readonly ChatAttachment[],
-    sessionId: string | undefined
+    sessionId: string | undefined,
+    thinkingTrace: ChatThinkingTrace | null = null,
+    generatedImages: readonly ChatGeneratedImage[] = []
   ): ChatMessage {
     const baseMessage = {
       id: randomUUID(),
       role,
       content,
       createdAt: new Date().toISOString(),
-      attachments
+      attachments,
+      thinkingTrace,
+      generatedImages
     };
 
     return sessionId ? { ...baseMessage, sessionId } : baseMessage;
@@ -404,7 +425,33 @@ export class HermesChatManager {
 
     this.activeSessionId = sessionId;
     this.runStatus = "completed";
-    const assistantMessage = this.createMessage("assistant", parsedOutput.content, attachments, sessionId ?? undefined);
+    const imagePrompt = isChatImagePrompt(activeRun.prompt);
+    const imageBlocked = imagePrompt && isSensitiveImagePrompt(activeRun.prompt);
+    const generatedImages = imagePrompt && !imageBlocked
+      ? [createChatGeneratedImageArtifact(this.root, activeRun.prompt)]
+      : [];
+    const assistantContent = buildAssistantMessageContent(parsedOutput.content, generatedImages, imageBlocked);
+    const completedAtMs = Date.now();
+    const thinkingTrace = buildChatThinkingTrace({
+      prompt: activeRun.prompt,
+      provider: this.provider,
+      model: this.model,
+      startedAt: activeRun.startedAt,
+      startedAtMs: activeRun.startedAtMs,
+      completedAtMs,
+      output: assistantContent,
+      attachments,
+      generatedImages,
+      imageBlocked
+    });
+    const assistantMessage = this.createMessage(
+      "assistant",
+      assistantContent,
+      attachments,
+      sessionId ?? undefined,
+      thinkingTrace,
+      generatedImages
+    );
     const entry = this.addTimeline(runId, "system", "completed", "Hermes chat completed", sessionId ? `Session ${sessionId}.` : "No session id returned.");
     await this.emitTimeline(entry);
     await this.emitEvent({
@@ -550,6 +597,207 @@ export function parseHermesSessionsList(output: string): readonly ChatSessionSum
   }
 
   return sessions;
+}
+
+interface BuildChatThinkingTraceInput {
+  readonly prompt: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly startedAt: string;
+  readonly startedAtMs: number;
+  readonly completedAtMs: number;
+  readonly output: string;
+  readonly attachments: readonly ChatAttachment[];
+  readonly generatedImages: readonly ChatGeneratedImage[];
+  readonly imageBlocked: boolean;
+}
+
+export function buildChatThinkingTrace(input: BuildChatThinkingTraceInput): ChatThinkingTrace {
+  const completedAt = new Date(input.completedAtMs).toISOString();
+  const elapsedMs = Math.max(1, input.completedAtMs - input.startedAtMs);
+  const outputTokens = estimateChatTokens(input.output);
+  const tokensPerSecond = Number((outputTokens / (elapsedMs / 1000)).toFixed(2));
+  const contextDetail = input.attachments.length > 0
+    ? `Used ${input.attachments.length} user-selected attachment metadata record(s).`
+    : "No user-selected attachment metadata was needed.";
+  const generationDetail = input.imageBlocked
+    ? "Blocked image artifact creation because the prompt contains sensitive content."
+    : input.generatedImages.length > 0
+      ? `Created ${input.generatedImages.length} local image preview artifact(s) for the reply.`
+      : "Drafted a text reply through the selected local chat model.";
+  const generationState: ChatThinkingStepState = input.imageBlocked ? "blocked" : "completed";
+  const steps: readonly ChatThinkingStep[] = [
+    {
+      id: "understand",
+      label: "Understand",
+      detail: "Classified the user request and checked the visible safety boundary.",
+      state: "completed" as const
+    },
+    {
+      id: "route",
+      label: "Route",
+      detail: `Selected provider ${input.provider} with model ${input.model}.`,
+      state: "completed" as const
+    },
+    {
+      id: "context",
+      label: "Context",
+      detail: contextDetail,
+      state: "completed" as const
+    },
+    {
+      id: "generate",
+      label: "Generate",
+      detail: generationDetail,
+      state: generationState
+    },
+    {
+      id: "verify",
+      label: "Verify",
+      detail: `Estimated ${outputTokens} output token(s) at ${tokensPerSecond} token/s.`,
+      state: "completed" as const
+    }
+  ];
+
+  return {
+    visibility: "summary",
+    summary: "User-visible process summary. Private chain-of-thought is not exposed.",
+    steps,
+    diagram: {
+      nodes: steps.map((step) => ({
+        id: step.id,
+        label: step.label,
+        state: step.state
+      })),
+      edges: steps.slice(1).map((step, index) => ({
+        from: steps[index]!.id,
+        to: step.id
+      }))
+    },
+    metrics: {
+      startedAt: input.startedAt,
+      completedAt,
+      elapsedMs,
+      outputTokens,
+      tokensPerSecond
+    }
+  };
+}
+
+export function estimateChatTokens(text: string): number {
+  const normalized = text.trim();
+  if (normalized.length === 0) {
+    return 0;
+  }
+
+  const compactLength = normalized.replace(/\s+/gu, "").length;
+  const thaiAndCjkCount = normalized.match(/[\u0E00-\u0E7F\u3400-\u9FFF]/gu)?.length ?? 0;
+  return Math.max(1, Math.ceil(((compactLength - thaiAndCjkCount) / 4) + thaiAndCjkCount));
+}
+
+export function isChatImagePrompt(prompt: string): boolean {
+  return IMAGE_PROMPT_PATTERN.test(prompt);
+}
+
+export function isSensitiveImagePrompt(prompt: string): boolean {
+  return IMAGE_PROMPT_SENSITIVE_PATTERN.test(prompt);
+}
+
+export function createChatGeneratedImageArtifact(root: string, prompt: string): ChatGeneratedImage {
+  if (!isChatImagePrompt(prompt)) {
+    throw new Error("Chat image artifact requires an image request.");
+  }
+  if (isSensitiveImagePrompt(prompt)) {
+    throw new Error("Sensitive prompt content is not allowed for chat image generation.");
+  }
+
+  const createdAt = new Date().toISOString();
+  const id = `chat-image-${randomUUID()}`;
+  const outputDir = join(resolve(root), "artifacts", "chat-generated");
+  const outputPath = join(outputDir, `${id}.svg`);
+  mkdirSync(outputDir, { recursive: true });
+  writeFileSync(outputPath, buildChatImageSvg(prompt), "utf8");
+
+  return {
+    id,
+    prompt,
+    name: `${id}.svg`,
+    path: outputPath,
+    previewUrl: pathToFileURL(outputPath).href,
+    mimeType: "image/svg+xml",
+    width: CHAT_IMAGE_WIDTH,
+    height: CHAT_IMAGE_HEIGHT,
+    detail: "Created a local SVG preview artifact for the chat reply; no external generation call was made.",
+    createdAt
+  };
+}
+
+function buildAssistantMessageContent(
+  content: string,
+  generatedImages: readonly ChatGeneratedImage[],
+  imageBlocked: boolean
+): string {
+  const safeContent = content.trim();
+  const notes: string[] = [];
+  if (generatedImages.length > 0) {
+    notes.push("Generated image preview is attached below.");
+  }
+  if (imageBlocked) {
+    notes.push("Image preview was not generated because the prompt contains sensitive content.");
+  }
+  return [safeContent, ...notes].filter((section) => section.length > 0).join("\n\n");
+}
+
+function buildChatImageSvg(prompt: string): string {
+  const hash = createHash("sha256").update(prompt).digest("hex");
+  const colorA = `#${hash.slice(0, 6)}`;
+  const colorB = `#${hash.slice(6, 12)}`;
+  const colorC = `#${hash.slice(12, 18)}`;
+  const lines = wrapSvgText(prompt, 52).slice(0, 5);
+  const escapedLines = lines.map((line) => escapeSvg(line));
+  const lineMarkup = escapedLines.map((line, index) => (
+    `<text x="80" y="${260 + (index * 34)}" font-family="Segoe UI, Arial, sans-serif" font-size="26" fill="#f8fafc">${line}</text>`
+  )).join("\n  ");
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${CHAT_IMAGE_WIDTH}" height="${CHAT_IMAGE_HEIGHT}" viewBox="0 0 ${CHAT_IMAGE_WIDTH} ${CHAT_IMAGE_HEIGHT}" role="img" aria-label="Generated chat image preview">`,
+    `  <rect width="${CHAT_IMAGE_WIDTH}" height="${CHAT_IMAGE_HEIGHT}" fill="#111827"/>`,
+    `  <rect x="40" y="40" width="880" height="460" rx="28" fill="${colorA}" opacity="0.88"/>`,
+    `  <circle cx="760" cy="150" r="120" fill="${colorB}" opacity="0.64"/>`,
+    `  <circle cx="220" cy="380" r="150" fill="${colorC}" opacity="0.48"/>`,
+    `  <path d="M70 430 C240 300 380 480 520 330 S780 260 890 410" fill="none" stroke="#f8fafc" stroke-width="10" opacity="0.72"/>`,
+    `  <text x="80" y="130" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700" fill="#ffffff">Hermes generated preview</text>`,
+    `  <text x="80" y="182" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#e5e7eb">Local artifact for chat review</text>`,
+    `  ${lineMarkup}`,
+    "</svg>"
+  ].join("\n");
+}
+
+function wrapSvgText(text: string, maxLineLength: number): readonly string[] {
+  const words = text.replace(/\s+/gu, " ").trim().split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const next = current.length === 0 ? word : `${current} ${word}`;
+    if (next.length > maxLineLength && current.length > 0) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current.length > 0) {
+    lines.push(current);
+  }
+  return lines.length > 0 ? lines : ["Generated chat image"];
+}
+
+function escapeSvg(value: string): string {
+  return value
+    .replace(/&/gu, "&amp;")
+    .replace(/</gu, "&lt;")
+    .replace(/>/gu, "&gt;")
+    .replace(/"/gu, "&quot;");
 }
 
 async function runProcess(

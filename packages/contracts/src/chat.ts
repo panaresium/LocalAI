@@ -3,6 +3,7 @@ export type ChatRunStatus = "idle" | "running" | "completed" | "cancelled" | "fa
 export type ChatAttachmentKind = "image" | "document" | "audio" | "video" | "other";
 export type ChatTimelineKind = "system" | "tool" | "approval";
 export type ChatTimelineState = "pending" | "running" | "completed" | "cancelled" | "failed";
+export type ChatThinkingStepState = "pending" | "running" | "completed" | "blocked";
 
 export interface ChatProfileSummary {
   readonly id: string;
@@ -26,6 +27,58 @@ export interface ChatAttachment {
   readonly selectedAt: string;
 }
 
+export interface ChatRunMetrics {
+  readonly startedAt: string;
+  readonly completedAt: string | null;
+  readonly elapsedMs: number;
+  readonly outputTokens: number;
+  readonly tokensPerSecond: number;
+}
+
+export interface ChatThinkingStep {
+  readonly id: string;
+  readonly label: string;
+  readonly detail: string;
+  readonly state: ChatThinkingStepState;
+}
+
+export interface ChatThinkingDiagramNode {
+  readonly id: string;
+  readonly label: string;
+  readonly state: ChatThinkingStepState;
+}
+
+export interface ChatThinkingDiagramEdge {
+  readonly from: string;
+  readonly to: string;
+}
+
+export interface ChatThinkingDiagram {
+  readonly nodes: readonly ChatThinkingDiagramNode[];
+  readonly edges: readonly ChatThinkingDiagramEdge[];
+}
+
+export interface ChatThinkingTrace {
+  readonly visibility: "summary";
+  readonly summary: string;
+  readonly steps: readonly ChatThinkingStep[];
+  readonly diagram: ChatThinkingDiagram;
+  readonly metrics: ChatRunMetrics;
+}
+
+export interface ChatGeneratedImage {
+  readonly id: string;
+  readonly prompt: string;
+  readonly name: string;
+  readonly path: string;
+  readonly previewUrl: string;
+  readonly mimeType: "image/svg+xml" | "image/png";
+  readonly width: number;
+  readonly height: number;
+  readonly detail: string;
+  readonly createdAt: string;
+}
+
 export interface ChatMessage {
   readonly id: string;
   readonly role: ChatRole;
@@ -33,6 +86,8 @@ export interface ChatMessage {
   readonly createdAt: string;
   readonly sessionId?: string;
   readonly attachments: readonly ChatAttachment[];
+  readonly thinkingTrace: ChatThinkingTrace | null;
+  readonly generatedImages: readonly ChatGeneratedImage[];
 }
 
 export interface ChatTimelineEntry {

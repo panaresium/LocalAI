@@ -1980,6 +1980,20 @@ function pendingAssistantId(runId: string): string {
   return `pending-assistant-${runId}`;
 }
 
+function thinkingNodeX(index: number, total: number): number {
+  if (total <= 1) {
+    return 300;
+  }
+  return 50 + (index * (500 / (total - 1)));
+}
+
+function formatElapsedMs(value: number): string {
+  if (value < 1000) {
+    return `${value} ms`;
+  }
+  return `${(value / 1000).toFixed(1)} s`;
+}
+
 function formatBytes(value: number): string {
   if (value < 1024) {
     return `${value} B`;
@@ -2013,7 +2027,9 @@ function applyChatEvent(messages: readonly ChatMessage[], event: ChatEvent): rea
       role: "assistant",
       content: "",
       createdAt: new Date().toISOString(),
-      attachments: []
+      attachments: [],
+      thinkingTrace: null,
+      generatedImages: []
     };
     return [...messages, event.message, assistantPlaceholder];
   }
@@ -6472,6 +6488,66 @@ export function App(): ReactElement {
                   <time>{new Date(message.createdAt).toLocaleTimeString()}</time>
                 </div>
                 <p>{message.content || (message.role === "assistant" && isChatRunning ? "Thinking..." : "")}</p>
+                {message.thinkingTrace ? (
+                  <details className="thinking-trace" open={message.role === "assistant"}>
+                    <summary>
+                      <span>AI process</span>
+                      <strong>{message.thinkingTrace.metrics.tokensPerSecond.toFixed(2)} token/s</strong>
+                    </summary>
+                    <p>{message.thinkingTrace.summary}</p>
+                    <div className="thinking-metrics" aria-label="AI response metrics">
+                      <span>{message.thinkingTrace.metrics.outputTokens} tokens</span>
+                      <span>{formatElapsedMs(message.thinkingTrace.metrics.elapsedMs)}</span>
+                      <span>{message.thinkingTrace.steps.length} steps</span>
+                    </div>
+                    <svg className="thinking-diagram" viewBox="0 0 600 120" role="img" aria-label="AI thinking steps diagram">
+                      {message.thinkingTrace.diagram.edges.map((edge) => {
+                        const fromIndex = message.thinkingTrace?.diagram.nodes.findIndex((node) => node.id === edge.from) ?? 0;
+                        const toIndex = message.thinkingTrace?.diagram.nodes.findIndex((node) => node.id === edge.to) ?? 0;
+                        const total = message.thinkingTrace?.diagram.nodes.length ?? 1;
+                        return (
+                          <line
+                            key={`${edge.from}-${edge.to}`}
+                            x1={thinkingNodeX(fromIndex, total)}
+                            y1="42"
+                            x2={thinkingNodeX(toIndex, total)}
+                            y2="42"
+                            className="thinking-edge"
+                          />
+                        );
+                      })}
+                      {message.thinkingTrace.diagram.nodes.map((node, index) => (
+                        <g className={`thinking-node ${node.state}`} key={node.id}>
+                          <circle cx={thinkingNodeX(index, message.thinkingTrace?.diagram.nodes.length ?? 1)} cy="42" r="16" />
+                          <text x={thinkingNodeX(index, message.thinkingTrace?.diagram.nodes.length ?? 1)} y="82">
+                            {node.label}
+                          </text>
+                        </g>
+                      ))}
+                    </svg>
+                    <ol className="thinking-steps">
+                      {message.thinkingTrace.steps.map((step) => (
+                        <li className={step.state} key={step.id}>
+                          <strong>{step.label}</strong>
+                          <span>{step.detail}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                ) : null}
+                {message.generatedImages.length > 0 ? (
+                  <div className="chat-generated-images" aria-label="Generated chat images">
+                    {message.generatedImages.map((image) => (
+                      <figure key={image.id}>
+                        <img src={image.previewUrl} alt={`Generated image preview for ${image.prompt}`} />
+                        <figcaption>
+                          <strong>{image.name}</strong>
+                          <span>{image.detail}</span>
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                ) : null}
                 {message.attachments.length > 0 ? (
                   <ul className="attachment-list">
                     {message.attachments.map((attachment) => (
